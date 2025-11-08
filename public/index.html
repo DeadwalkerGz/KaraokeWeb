@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Karaoke Web</title>
+  <!-- ✅ sin 'public/' -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Karaoke Web Local</h1>
+  <audio id="audio" controls src="cancion.mp3"></audio>
+
+  <div id="letra-container">
+    <p id="letra-actual">🎤 Canta aquí...</p>
+  </div>
+
+  <div id="mic-info">
+    <p>Frecuencia detectada: <span id="frecuencia">–</span> Hz</p>
+    <canvas id="barra-tono" width="400" height="30"></canvas>
+    <p id="afinacion">🎶 Esperando tono...</p>
+  </div>
+
+  <link rel="stylesheet" href="css/comparador.css">
+
+<div id="afinador-container">
+  <div class="grid"></div>
+  <canvas id="canvas-afinacion"></canvas>
+  <div id="linea-referencia"></div>
+  <div class="etiquetas">
+    <span id="label-hz">Hz</span>
+    <span id="label-medio">MEDIO</span>
+    <span id="label-alto">ALTO</span>
+  </div>
+</div>
+
+
+
+
+  <!-- ✅ sin 'public/' -->
+  <script src="detector.js"></script>
+  <script src="mic.js"></script>
+  <script src="js/comparador.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

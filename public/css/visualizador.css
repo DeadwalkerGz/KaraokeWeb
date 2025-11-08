@@ -1,0 +1,34 @@
+body {
+  background: #000;
+  color: #0ff;
+  text-align: center;
+  font-family: Arial, sans-serif;
+}
+
+#canvas-container {
+  position: relative;
+  width: 90%;
+  max-width: 900px;
+  height: 300px;
+  margin: 20px auto;
+  background: linear-gradient(to top, #050505, #101010);
+  border: 1px solid #222;
+  box-shadow: 0 0 20px #0ff2;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#label-db {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 28px;
+  font-weight: bold;
+  color: #0ff;
+  text-shadow: 0 0 15px currentColor;
+  pointer-events: none;
+}

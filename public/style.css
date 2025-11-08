@@ -1,0 +1,33 @@
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  background-color: #111;
+  color: #eee;
+  text-align: center;
+}
+
+audio {
+  margin: 20px 0;
+}
+
+#letra-actual {
+  font-size: 24px;
+  margin-top: 20px;
+  color: #00ffcc;
+}
+
+#mic-info {
+  margin-top: 40px;
+  font-size: 18px;
+}
+
+#barra-tono {
+  margin-top: 10px;
+  background-color: #333;
+  border: 1px solid #555;
+  border-radius: 5px;
+}
+#afinacion {
+  font-size: 20px;
+  margin-top: 10px;
+}
