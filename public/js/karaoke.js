@@ -24,6 +24,9 @@ class KaraokeApp {
     this.minHz = 80;
     this.maxHz = 1000;
     this.currentHz = null;
+    this.currentRms = 0;  // nivel de energía de la voz
+    this.lastHz = 0;      // última frecuencia válida (para suavizado)
+
 
     // Visual
     this.lastDraw = 0;
@@ -121,59 +124,86 @@ class KaraokeApp {
     if (!this.analyser) return;
     this.analyser.getFloatTimeDomainData(this.data);
 
-    const hz = this._detectPitchACF(this.data, this.sampleRate);
-    this.currentHz = hz && hz >= this.minHz && hz <= this.maxHz ? hz : null;
+    // 🔹 Detectar tono y nivel RMS
+    const { hz, rms } = this._detectPitchACF(this.data, this.sampleRate);
+    this.currentRms = rms; // guarda nivel de energía
 
-    if (this.currentHz) {
-      this.labelHz.textContent = `${this.currentHz.toFixed(1)} Hz`;
-      this._status("Cantando", "ok");
-      this._pushHistory(this.currentHz);
+    // 🔹 Suavizado y estabilidad de tono
+    if (hz) {
+        if (!this.lastHz) this.lastHz = hz;
+        // mezcla tono nuevo con anterior para suavizar saltos
+        this.currentHz = this.lastHz * 0.8 + hz * 0.2;
+        this.lastHz = this.currentHz;
     } else {
-      this.labelHz.textContent = "– Hz";
-      this._status("Esperando tono…", "warn");
-      this._pushHistory(null);
+        // si no hay tono válido, mantiene un poco el anterior antes de soltarlo
+        this.currentHz = this.lastHz * 0.9;
+        if (this.currentHz < this.minHz) this.currentHz = null;
     }
 
+    // 🔹 Actualización de la interfaz
+    if (this.currentHz) {
+        this.labelHz.textContent = `${this.currentHz.toFixed(1)} Hz`;
+        this._status("Cantando", "ok");
+        this._pushHistory(this.currentHz);
+    } else {
+        this.labelHz.textContent = "– Hz";
+        this._status("Esperando tono…", "warn");
+        this._pushHistory(null);
+    }
+
+    // 🔹 Control de FPS (60 por segundo aprox)
     const now = performance.now();
     if (now - this.lastDraw > 1000 / 60) {
-      this._draw(now);
-      this.lastDraw = now;
+        this._draw(now);
+        this.lastDraw = now;
     }
 
     this._raf = requestAnimationFrame(() => this._loop());
   }
 
+
   // 🔸 Detección de tono (autocorrelación)
   _detectPitchACF(buf, sampleRate) {
+    // Calcular RMS (nivel de energía)
     let rms = 0;
     for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
     rms = Math.sqrt(rms / buf.length);
-    if (rms < 0.008) return null;
 
+    // Filtro de silencio (si hay poco volumen)
+    if (rms < 0.01) return { hz: null, rms };
+
+    // Autocorrelación
     const SIZE = buf.length;
     const c = new Float32Array(SIZE);
     for (let lag = 0; lag < SIZE; lag++) {
-      let sum = 0;
-      for (let j = 0; j < SIZE - lag; j++) sum += buf[j] * buf[j + lag];
-      c[lag] = sum;
+        let sum = 0;
+        for (let j = 0; j < SIZE - lag; j++) sum += buf[j] * buf[j + lag];
+        c[lag] = sum;
     }
 
+    // Buscar primer pico significativo
     let d = 0;
     while (d < SIZE && c[d] > c[d + 1]) d++;
     let maxv = -1, maxi = -1;
-    for (let i2 = d; i2 < SIZE; i2++) {
-      if (c[i2] > maxv) { maxv = c[i2]; maxi = i2; }
+    for (let i = d; i < SIZE; i++) {
+        if (c[i] > maxv) { maxv = c[i]; maxi = i; }
     }
-    if (maxi <= 0) return null;
+    if (maxi <= 0) return { hz: null, rms };
 
+    // Interpolación parabólica (mejora precisión)
     const x1 = c[maxi - 1], x2 = c[maxi], x3 = c[maxi + 1] || x2;
     const a = (x1 + x3 - 2 * x2) / 2;
     const b = (x3 - x1) / 2;
     const shift = a ? -b / (2 * a) : 0;
-    const period = (maxi + shift);
+    const period = maxi + shift;
     const freq = sampleRate / period;
-    return isFinite(freq) ? freq : null;
+
+    // Validar rango
+    const hz = isFinite(freq) && freq >= this.minHz && freq <= this.maxHz ? freq : null;
+
+    return { hz, rms };
   }
+
 
   _pushHistory(hz) {
     this.history.push(hz);
@@ -193,6 +223,12 @@ class KaraokeApp {
     const w = this.canvas.width;
     const h = this.canvas.height;
     ctx.clearRect(0, 0, w, h);
+
+    // Fondo dinámico según energía de voz
+    const energia = Math.min(1, this.currentRms * 8); // escala 0–1
+    ctx.fillStyle = `rgba(0, 255, 0, ${energia * 0.25})`;
+    ctx.fillRect(0, 0, w, h);
+
 
     // Fondo
     ctx.fillStyle = "#0b0f15";
