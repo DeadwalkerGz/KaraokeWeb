@@ -1,46 +1,38 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Karaoke Web</title>
-  <!-- ✅ sin 'public/' -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <h1>Karaoke Web Local</h1>
-  <audio id="audio" controls src="cancion.mp3"></audio>
 
-  <div id="letra-container">
-    <p id="letra-actual">🎤 Canta aquí...</p>
-  </div>
+  <section class="player">
+    <select id="selector-cancion"></select>
+    <button id="btn-cargar">Cargar canción</button>
+    <button id="btn-mic">🎙️ Activar micrófono</button>
+    <audio id="audio" controls></audio>
+  </section>
 
-  <div id="mic-info">
-    <p>Frecuencia detectada: <span id="frecuencia">–</span> Hz</p>
-    <canvas id="barra-tono" width="400" height="30"></canvas>
-    <p id="afinacion">🎶 Esperando tono...</p>
-  </div>
+  <section class="afinador">
+    <div id="afinador-container">
+      <canvas id="canvas-afinacion" width="800" height="180"></canvas>
+      <div class="etiquetas">
+        <span id="label-actual">– Hz</span>
+        <span id="label-estado">Esperando tono…</span>
+      </div>
+    </div>
+  </section>
 
-  <link rel="stylesheet" href="css/comparador.css">
+  <section class="letra">
+    <div id="letra-container">
+      <p id="letra-actual">🎤 Canta aquí…</p>
+    </div>
+  </section>
 
-<div id="afinador-container">
-  <div class="grid"></div>
-  <canvas id="canvas-afinacion"></canvas>
-  <div id="linea-referencia"></div>
-  <div class="etiquetas">
-    <span id="label-hz">Hz</span>
-    <span id="label-medio">MEDIO</span>
-    <span id="label-alto">ALTO</span>
-  </div>
-</div>
-
-
-
-
-  <!-- ✅ sin 'public/' -->
-  <script src="detector.js"></script>
-  <script src="mic.js"></script>
-  <script src="js/comparador.js"></script>
-  <script src="script.js"></script>
+  <script src="js/karaoke.js"></script>
+  <script src="js/script.js"></script>
 </body>
 </html>
