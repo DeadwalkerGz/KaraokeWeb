@@ -138,15 +138,28 @@
     // ================================
     // 🔹 Control remoto de reproducción
     // ================================
-    btnPlay.onclick = () => {
-      window.socket.emit("musicControl", { action: "play", from: getUserName() });
-      labelEstado.textContent = "▶️ Solicitó reproducir";
-    };
+btnPlay.onclick = () => {
+  // 🔹 Reproduce localmente también
+  if (audio && audio.src) {
+    audio.play().catch(err => console.warn("⚠️ Error local play:", err));
+  }
 
-    btnPause.onclick = () => {
-      window.socket.emit("musicControl", { action: "pause", from: getUserName() });
-      labelEstado.textContent = "⏸️ Solicitó pausa";
-    };
+  // 🔹 Envía la señal al host
+  window.socket.emit("musicControl", { action: "play", from: getUserName() });
+  labelEstado.textContent = "▶️ Reproduciendo (local + remoto)";
+};
+
+btnPause.onclick = () => {
+  // 🔹 Pausa localmente también
+  if (audio && !audio.paused) {
+    audio.pause();
+  }
+
+  // 🔹 Envía la señal al host
+  window.socket.emit("musicControl", { action: "pause", from: getUserName() });
+  labelEstado.textContent = "⏸️ Pausando (local + remoto)";
+};
+
 
     // ================================
     // 🔹 Micrófono local
