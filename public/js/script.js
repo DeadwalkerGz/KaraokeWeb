@@ -1,90 +1,81 @@
-// public/js/script.js
-(async function () {
-  const app = new KaraokeApp({
-    audioId: "audio",
-    btnMicId: "btn-mic",
-    canvasId: "canvas-afinacion",
-    labelHzId: "label-actual",
-    labelEstadoId: "label-estado",
-    lyricsId: "letra-actual",
-  });
+// ===================================================
+// 🎤 SCRIPT PRINCIPAL DEL KARAOKE
+// Conexión Host + sincronización de canciones
+// ===================================================
+
+import { selectSong } from "./socketClient.js";
+
+// Esperar a que el DOM esté listo
+window.addEventListener("DOMContentLoaded", async () => {
+  const app = new KaraokeApp();
+  await app.init();
 
   const selector = document.getElementById("selector-cancion");
   const btnCargar = document.getElementById("btn-cargar");
   const audio = document.getElementById("audio");
 
-  // 🔹 Obtener lista de canciones desde el servidor
-  async function cargarListaCanciones() {
-    const res = await fetch("/api/songs");
-    const canciones = await res.json();
+  // ==========================
+  // 1️⃣ Cargar lista de canciones
+  // ==========================
+  async function cargarCanciones() {
+    try {
+      const res = await fetch("/api/songs");
+      if (!res.ok) throw new Error("Error al obtener canciones");
 
-    selector.innerHTML = "";
-    if (canciones.length === 0) {
-      selector.innerHTML = `<option value="">(No hay canciones en /uploads)</option>`;
-    } else {
-      canciones.forEach(nombre => {
+      const songs = await res.json();
+      selector.innerHTML = "";
+
+      if (songs.length === 0) {
         const opt = document.createElement("option");
-        opt.value = nombre;
-        opt.textContent = `🎵 ${nombre}`;
+        opt.textContent = "No hay canciones disponibles";
+        selector.appendChild(opt);
+        return;
+      }
+
+      songs.forEach(song => {
+        const opt = document.createElement("option");
+        opt.value = song;
+        opt.textContent = song;
         selector.appendChild(opt);
       });
-    }
-  }
 
-  // 🔹 Nueva función: analizar canción seleccionada
-  async function analizarCancion(nombre) {
-    try {
-      const res = await fetch(`/api/analyze/${nombre}`);
-      const data = await res.json();
-
-      if (data.status === "ok") {
-        console.log(`✅ Referencia generada: ${data.ref}`);
-        app._status("Análisis completado y guardado en /references/", "ok");
-        alert(`✅ Análisis completado y guardado en /references/`);
-      } else {
-        console.error("❌ Error al analizar:", data.msg);
-        alert("❌ Error al analizar la canción.");
-      }
+      console.log(`✅ Canciones cargadas: ${songs.length}`);
     } catch (err) {
-      console.error("❌ Error al conectarse al servidor:", err);
-      alert("❌ Error al analizar la canción. Revisa la consola.");
+      console.error("❌ Error al cargar canciones:", err);
     }
   }
 
-  // 🔹 Evento: cargar canción seleccionada
+  await cargarCanciones();
+
+  // ==========================
+  // 2️⃣ Evento: cargar canción seleccionada
+  // ==========================
   btnCargar.addEventListener("click", async () => {
     const seleccionada = selector.value;
-    if (!seleccionada) return alert("Selecciona una canción primero.");
+    if (!seleccionada || seleccionada === "No hay canciones disponibles") {
+      alert("Selecciona una canción válida primero.");
+      return;
+    }
 
     const ruta = `/uploads/${seleccionada}`;
-    audio.src = ruta;
-    audio.pause();
-    audio.load();
-    audio.oncanplay = () => audio.play();
+    console.log(`🎵 Cargando canción: ${ruta}`);
 
+    try {
+      // Cargar y reproducir canción
+      audio.src = ruta;
+      audio.pause();
+      audio.load();
+      audio.oncanplay = () => audio.play();
 
-    app.setSong(ruta);
+      // Notificar a Usuario 2
+      selectSong(seleccionada);
 
-    // 🧠 Ejecutar análisis automático
-    await analizarCancion(seleccionada);
+      // Generar referencia (Hz) y cargar en karaoke.js
+      app.setSong(ruta);
+
+      console.log(`✅ Canción reproducida y sincronizada: ${seleccionada}`);
+    } catch (err) {
+      console.error("❌ Error al cargar la canción:", err);
+    }
   });
-
-  // 🔹 Ajuste automático del canvas
-  function resizeCanvas() {
-    const canvas = document.getElementById("canvas-afinacion");
-    const ratio = window.devicePixelRatio || 1;
-    const style = getComputedStyle(canvas);
-    const cssWidth = parseFloat(style.width) || canvas.clientWidth || 800;
-    const cssHeight = parseFloat(style.height) || canvas.clientHeight || 180;
-    canvas.width = Math.round(cssWidth * ratio);
-    canvas.height = Math.round(cssHeight * ratio);
-    const ctx = canvas.getContext("2d");
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  }
-
-  window.addEventListener("resize", resizeCanvas);
-  resizeCanvas();
-
-  await app.init();
-  await cargarListaCanciones();
-})();
+});

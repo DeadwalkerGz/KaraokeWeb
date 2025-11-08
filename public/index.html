@@ -32,7 +32,13 @@
     </div>
   </section>
 
-  <script src="js/karaoke.js"></script>
-  <script src="js/script.js"></script>
+  <!-- Cliente de Socket.IO (necesario para que exista "io") -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Módulos del karaoke -->
+  <script type="module" src="/js/socketClient.js"></script>
+  <script type="module" src="js/karaoke.js"></script>
+  <script type="module" src="js/script.js"></script>
+
 </body>
 </html>

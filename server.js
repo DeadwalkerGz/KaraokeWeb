@@ -1,7 +1,9 @@
 // server.js
 import express from "express";
-import fs from "fs";
+import http from "http";
+import { Server } from "socket.io";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { analyzeSong } from "./analyze/songAnalyzer.js";
 
@@ -9,11 +11,54 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const server = http.createServer(app);
+
+// Inicializa Socket.IO con configuración estable
+const io = new Server(server, {
+  cors: {
+    origin: "*", // 🔹 Permite conexión desde móvil y PC
+    methods: ["GET", "POST"]
+  }
+});
+
 const PORT = 3000;
 
 // Middleware para servir archivos estáticos
 app.use(express.static(path.join(__dirname, "public")));
-// Analiza una canción seleccionada y genera la referencia
+
+// ===============================
+// 🔹 SOCKET.IO — Comunicación en tiempo real
+// ===============================
+io.on("connection", (socket) => {
+  console.log(`🟢 Usuario conectado: ${socket.id}`);
+
+  // Recibir nombre del usuario (Host o User2)
+  socket.on("setUser", (name) => {
+    socket.userName = name;
+    console.log(`👤 Usuario identificado como: ${name}`);
+  });
+
+  // Reenviar tono (pitch) a todos los demás
+  socket.on("pitchData", (data) => {
+    socket.broadcast.emit("updatePitch", data);
+  });
+
+  // Reenviar selección de canción a todos los demás
+  socket.on("selectSong", (song) => {
+    console.log(`🎵 Canción seleccionada: ${song}`);
+    socket.broadcast.emit("songSelected", song);
+  });
+
+  socket.on("disconnect", () => {
+    console.log(`🔴 Usuario desconectado: ${socket.id}`);
+  });
+});
+
+// ===============================
+// 🔹 ENDPOINTS DE API
+// ===============================
+
+// Analizar una canción seleccionada
 app.get("/api/analyze/:file", async (req, res) => {
   const file = req.params.file;
   try {
@@ -25,25 +70,20 @@ app.get("/api/analyze/:file", async (req, res) => {
   }
 });
 
-// Endpoint para listar canciones disponibles
+// Listar canciones disponibles en /public/uploads
 app.get("/api/songs", (req, res) => {
   const uploadsDir = path.join(__dirname, "public", "uploads");
-
   fs.readdir(uploadsDir, (err, files) => {
     if (err) return res.status(500).json({ error: "No se pudieron leer las canciones." });
-
-    // Solo MP3, WAV, OGG
     const songs = files.filter(f => /\.(mp3|wav|ogg)$/i.test(f));
     res.json(songs);
   });
 });
 
-// Servir canciones directamente
-app.get("/uploads/:file", (req, res) => {
-  const filePath = path.join(__dirname, "public", "uploads", req.params.file);
-  res.sendFile(filePath);
-});
-
-app.listen(PORT, () => {
-  console.log(`🎤 Servidor Karaoke corriendo en: http://localhost:${PORT}`);
+// ===============================
+// 🔹 INICIO DEL SERVIDOR
+// ===============================
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`🎤 Servidor Karaoke corriendo en: http://192.168.1.8:${PORT}`);
+  console.log("📡 Esperando conexiones de móviles en la misma red Wi-Fi...");
 });

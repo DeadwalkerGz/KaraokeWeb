@@ -1,4 +1,6 @@
 // public/js/karaoke.js
+import { getRemotePitch, sendPitch } from "./socketClient.js";
+
 class KaraokeApp {
   constructor(cfg = {}) {
     this.audioEl = document.getElementById(cfg.audioId || "audio");
@@ -160,6 +162,8 @@ class KaraokeApp {
     }
 
     this._raf = requestAnimationFrame(() => this._loop());
+    if (this.currentHz && performance.now() % 3 < 1) sendPitch(this.currentHz);
+
   }
 
 
@@ -315,6 +319,26 @@ class KaraokeApp {
       });
       ctx.stroke();
     }
+
+    // 💜 Línea del usuario remoto (voz del móvil)
+    const remote = getRemotePitch();
+    if (remote && remote.hz) {
+        const yRemote = this._mapHzToY(remote.hz);
+        ctx.beginPath();
+        ctx.moveTo(0, yRemote);
+        ctx.lineTo(w, yRemote);
+        ctx.strokeStyle = "#d56eff"; // color magenta
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // etiqueta
+        ctx.fillStyle = "#d56eff";
+        ctx.font = "13px system-ui";
+        ctx.fillText(`${remote.user}: ${remote.hz.toFixed(1)} Hz`, 10, yRemote - 6);
+    }
+
 
     // Etiquetas
     ctx.fillStyle = "#8a8f98";

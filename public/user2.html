@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Karaoke - Usuario 2 (Móvil)</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0b0f15;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+      overflow: hidden;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 10px 0;
+      color: #80c8ff;
+      font-size: 1.3em;
+    }
+
+    select, button {
+      font-size: 1em;
+      padding: 8px 12px;
+      margin: 8px;
+      border-radius: 6px;
+      border: none;
+    }
+
+    select {
+      background: #10161f;
+      color: #fff;
+      border: 1px solid #223046;
+    }
+
+    button {
+      background: #5db3ff;
+      color: #000;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #7fc8ff;
+    }
+
+    #canvas-afinacion {
+      width: 90%;
+      height: 45vh;
+      background: #10161f;
+      border: 2px solid #223046;
+      border-radius: 12px;
+      margin-top: 10px;
+    }
+
+    .ok { color: #4cff4c; }
+    .warn { color: #ffb84c; }
+    .bad { color: #ff4c4c; }
+  </style>
+</head>
+
+<body>
+  <h1>🎤 Usuario 2 (Móvil)</h1>
+
+  <!-- 🎵 Controles -->
+  <div>
+    <select id="selector-cancion"></select>
+    <button id="btn-cargar">Cargar</button>
+    <button id="btn-mic">🎙️ Activar micrófono</button>
+  </div>
+
+  <!-- 🎧 Afinador visual -->
+  <canvas id="canvas-afinacion" width="400" height="250"></canvas>
+
+  <!-- 📊 Estado -->
+  <p id="label-actual">– Hz</p>
+  <p id="label-estado" class="warn">Conectando...</p>
+  <p id="remotePitch">🎵 Host: – Hz</p>
+
+  <!-- 🔌 Socket.IO primero (fuera del módulo) -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- 🔹 Script principal -->
+  <script type="module">
+    import { getRemotePitch, sendPitch, selectSong, getUserName } from "./js/socketClient.js";
+
+    const canvas = document.getElementById("canvas-afinacion");
+    const ctx = canvas.getContext("2d");
+    const btnMic = document.getElementById("btn-mic");
+    const labelHz = document.getElementById("label-actual");
+    const labelEstado = document.getElementById("label-estado");
+    const selector = document.getElementById("selector-cancion");
+    const btnCargar = document.getElementById("btn-cargar");
+
+    let ac = null;
+    let analyser = null;
+    let stream = null;
+    let data = new Float32Array(2048);
+    let currentHz = null;
+    let lastHz = 0;
+    let rmsLevel = 0;
+    let raf = null;
+
+    // ================================
+    // 🔹 Estado visual de conexión
+    // ================================
+    setTimeout(() => {
+      const estado = document.getElementById("label-estado");
+      if (window.socket && window.socket.connected) {
+        estado.textContent = "🟢 Conectado al servidor";
+        estado.className = "ok";
+      } else {
+        estado.textContent = "❌ No conectado al servidor";
+        estado.className = "bad";
+      }
+    }, 1500);
+
+    if (window.socket) {
+      window.socket.on("connect", () => {
+        labelEstado.textContent = "🟢 Conectado al servidor";
+        labelEstado.className = "ok";
+      });
+      window.socket.on("disconnect", () => {
+        labelEstado.textContent = "🔴 Desconectado";
+        labelEstado.className = "bad";
+      });
+    }
+
+    // ================================
+    // 🔹 Obtener lista de canciones
+    // ================================
+    async function cargarCanciones() {
+      try {
+        const res = await fetch("/api/songs");
+        const songs = await res.json();
+        selector.innerHTML = songs.map(s => `<option value="${s}">${s}</option>`).join("");
+      } catch (e) {
+        console.error("Error al obtener canciones:", e);
+      }
+    }
+    cargarCanciones();
+
+    // ================================
+    // 🔹 Cargar canción seleccionada
+    // ================================
+    btnCargar.onclick = () => {
+      const song = selector.value;
+      if (!song) return alert("Selecciona una canción primero.");
+      selectSong(song);
+      labelEstado.textContent = `🎵 Enviada canción: ${song}`;
+    };
+
+    // ================================
+    // 🔹 Micrófono
+    // ================================
+    btnMic.onclick = async () => {
+      if (stream) return stopMic();
+      await startMic();
+    };
+
+    async function startMic() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        ac = new (window.AudioContext || window.webkitAudioContext)();
+        const src = ac.createMediaStreamSource(stream);
+        analyser = ac.createAnalyser();
+        analyser.fftSize = 2048;
+        src.connect(analyser);
+        btnMic.textContent = "🛑 Detener micrófono";
+        labelEstado.textContent = "🎙️ Micrófono activo";
+        loop();
+      } catch (err) {
+        labelEstado.textContent = "Error de micrófono";
+        labelEstado.className = "bad";
+        console.error(err);
+      }
+    }
+
+    function stopMic() {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+      cancelAnimationFrame(raf);
+      btnMic.textContent = "🎙️ Activar micrófono";
+      labelEstado.textContent = "Micrófono apagado";
+      labelEstado.className = "warn";
+    }
+
+    // ================================
+    // 🔹 Detección de tono (ACF)
+    // ================================
+    function detectPitchACF(buf, sampleRate) {
+      let rms = 0;
+      for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
+      rms = Math.sqrt(rms / buf.length);
+      if (rms < 0.01) return { hz: null, rms };
+
+      const SIZE = buf.length;
+      const c = new Float32Array(SIZE);
+      for (let lag = 0; lag < SIZE; lag++) {
+        let sum = 0;
+        for (let j = 0; j < SIZE - lag; j++) sum += buf[j] * buf[j + lag];
+        c[lag] = sum;
+      }
+
+      let d = 0;
+      while (d < SIZE && c[d] > c[d + 1]) d++;
+      let maxv = -1, maxi = -1;
+      for (let i2 = d; i2 < SIZE; i2++) {
+        if (c[i2] > maxv) { maxv = c[i2]; maxi = i2; }
+      }
+      if (maxi <= 0) return { hz: null, rms };
+
+      const x1 = c[maxi - 1], x2 = c[maxi], x3 = c[maxi + 1] || x2;
+      const a = (x1 + x3 - 2 * x2) / 2;
+      const b = (x3 - x1) / 2;
+      const shift = a ? -b / (2 * a) : 0;
+      const period = maxi + shift;
+      const freq = sampleRate / period;
+      const hz = isFinite(freq) && freq >= 80 && freq <= 1000 ? freq : null;
+      return { hz, rms };
+    }
+
+    // ================================
+    // 🔹 Bucle principal
+    // ================================
+    function loop() {
+      if (!analyser) return;
+      analyser.getFloatTimeDomainData(data);
+      const { hz, rms } = detectPitchACF(data, ac.sampleRate);
+      rmsLevel = rms;
+      if (hz) {
+        if (!lastHz) lastHz = hz;
+        currentHz = lastHz * 0.8 + hz * 0.2;
+        lastHz = currentHz;
+      } else {
+        currentHz = lastHz * 0.9;
+        if (currentHz < 80) currentHz = null;
+      }
+
+      if (currentHz) {
+        labelHz.textContent = `${currentHz.toFixed(1)} Hz`;
+        labelEstado.textContent = "Cantando 🎶";
+        labelEstado.className = "ok";
+        sendPitch(currentHz);
+      } else {
+        labelHz.textContent = "– Hz";
+        labelEstado.textContent = "Esperando tono…";
+        labelEstado.className = "warn";
+      }
+
+      draw();
+      raf = requestAnimationFrame(loop);
+    }
+
+    // ================================
+    // 🔹 Dibujo del afinador
+    // ================================
+    function mapHzToY(hz) {
+      const h = canvas.height;
+      if (!hz) return null;
+      const clamped = Math.min(1000, Math.max(80, hz));
+      const norm = (clamped - 80) / (1000 - 80);
+      return h - norm * h;
+    }
+
+    function draw() {
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "#0b0f15";
+      ctx.fillRect(0, 0, w, h);
+
+      if (currentHz) {
+        ctx.beginPath();
+        const y = mapHzToY(currentHz);
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.strokeStyle = "#7fff7f";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      const remote = getRemotePitch();
+      if (remote && remote.hz) {
+        const y2 = mapHzToY(remote.hz);
+        ctx.beginPath();
+        ctx.moveTo(0, y2);
+        ctx.lineTo(w, y2);
+        ctx.strokeStyle = "#d56eff";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#d56eff";
+        ctx.font = "13px system-ui";
+        ctx.fillText(`${remote.user}: ${remote.hz.toFixed(1)} Hz`, 10, y2 - 6);
+      }
+    }
+  </script>
+</body>
+</html>
