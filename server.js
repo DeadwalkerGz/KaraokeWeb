@@ -16,7 +16,7 @@ const server = http.createServer(app);
 // Inicializa Socket.IO con configuración estable
 const io = new Server(server, {
   cors: {
-    origin: "*", // 🔹 Permite conexión desde móvil y PC
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
@@ -36,6 +36,7 @@ io.on("connection", (socket) => {
   socket.on("setUser", (name) => {
     socket.userName = name;
     console.log(`👤 Usuario identificado como: ${name}`);
+    io.emit("userConnected", { name }); // 🔹 Avisar a todos
   });
 
   // Reenviar tono (pitch) a todos los demás
@@ -43,22 +44,27 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("updatePitch", data);
   });
 
-  // Reenviar selección de canción a todos los demás
+  // Reenviar selección de canción
   socket.on("selectSong", (song) => {
     console.log(`🎵 Canción seleccionada: ${song}`);
-    socket.broadcast.emit("songSelected", song);
+    io.emit("songSelected", song); // 🔹 Enviar a todos, no solo al otro
+  });
+
+  // 🔹 Reenviar control de música (play/pause)
+  socket.on("musicControl", (data) => {
+    console.log(`🎛️ Control recibido: ${data.action} de ${data.from}`);
+    io.emit("musicControl", data); // 🔹 Reenviar a todos los clientes
   });
 
   socket.on("disconnect", () => {
     console.log(`🔴 Usuario desconectado: ${socket.id}`);
+    io.emit("userDisconnected", { name: socket.userName });
   });
 });
 
 // ===============================
 // 🔹 ENDPOINTS DE API
 // ===============================
-
-// Analizar una canción seleccionada
 app.get("/api/analyze/:file", async (req, res) => {
   const file = req.params.file;
   try {
@@ -70,12 +76,12 @@ app.get("/api/analyze/:file", async (req, res) => {
   }
 });
 
-// Listar canciones disponibles en /public/uploads
 app.get("/api/songs", (req, res) => {
   const uploadsDir = path.join(__dirname, "public", "uploads");
   fs.readdir(uploadsDir, (err, files) => {
-    if (err) return res.status(500).json({ error: "No se pudieron leer las canciones." });
-    const songs = files.filter(f => /\.(mp3|wav|ogg)$/i.test(f));
+    if (err)
+      return res.status(500).json({ error: "No se pudieron leer las canciones." });
+    const songs = files.filter((f) => /\.(mp3|wav|ogg)$/i.test(f));
     res.json(songs);
   });
 });

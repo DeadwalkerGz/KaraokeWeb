@@ -3,15 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Karaoke Web</title>
+  <title>Karaoke Web Host</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <h1>Karaoke Web Local</h1>
+  <h1>Karaoke Web 🎤 (Host-PC)</h1>
 
   <section class="player">
     <select id="selector-cancion"></select>
     <button id="btn-cargar">Cargar canción</button>
+
+    <!-- Controles explícitos -->
+    <button id="btn-play">▶️ Play</button>
+    <button id="btn-pause">⏸️ Pausa</button>
+
     <button id="btn-mic">🎙️ Activar micrófono</button>
     <audio id="audio" controls></audio>
   </section>
@@ -21,7 +26,7 @@
       <canvas id="canvas-afinacion" width="800" height="180"></canvas>
       <div class="etiquetas">
         <span id="label-actual">– Hz</span>
-        <span id="label-estado">Esperando tono…</span>
+        <span id="label-estado" class="warn">Conectando...</span>
       </div>
     </div>
   </section>
@@ -32,13 +37,12 @@
     </div>
   </section>
 
-  <!-- Cliente de Socket.IO (necesario para que exista "io") -->
+  <!-- 1) Carga el cliente socket.io del servidor -->
   <script src="/socket.io/socket.io.js"></script>
-
-  <!-- Módulos del karaoke -->
-  <script type="module" src="/js/socketClient.js"></script>
+  <!-- 2) Cliente propio: expone window.socket y actualiza #label-estado -->
+  <script type="module" src="js/socketClient.js"></script>
+  <!-- 3) Tu app -->
   <script type="module" src="js/karaoke.js"></script>
   <script type="module" src="js/script.js"></script>
-
 </body>
 </html>

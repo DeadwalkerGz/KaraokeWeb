@@ -1,55 +1,56 @@
 // ===================================================
-// 🎤 SCRIPT PRINCIPAL DEL KARAOKE
-// Conexión Host + sincronización de canciones
+// 🎤 SCRIPT PRINCIPAL DEL HOST (PC)
+// Controla la interfaz, el audio y sincroniza con User2
 // ===================================================
 
-import { selectSong } from "./socketClient.js";
+import { selectSong, getUserName } from "./socketClient.js";
+import { KaraokeApp } from "./karaoke.js";
 
-// Esperar a que el DOM esté listo
-window.addEventListener("DOMContentLoaded", async () => {
-  const app = new KaraokeApp();
-  await app.init();
-
+document.addEventListener("DOMContentLoaded", () => {
+  // === Elementos de la interfaz ===
   const selector = document.getElementById("selector-cancion");
   const btnCargar = document.getElementById("btn-cargar");
+  const btnPlay = document.getElementById("btn-play");
+  const btnPause = document.getElementById("btn-pause");
   const audio = document.getElementById("audio");
+  const labelEstado = document.getElementById("label-estado");
 
-  // ==========================
-  // 1️⃣ Cargar lista de canciones
-  // ==========================
+  // KaraokeApp (controlador de análisis)
+  const app = new KaraokeApp(audio);
+
+  // ===================================================
+  // 🔹 Cargar lista de canciones disponibles
+  // ===================================================
   async function cargarCanciones() {
     try {
       const res = await fetch("/api/songs");
-      if (!res.ok) throw new Error("Error al obtener canciones");
-
       const songs = await res.json();
-      selector.innerHTML = "";
 
-      if (songs.length === 0) {
-        const opt = document.createElement("option");
-        opt.textContent = "No hay canciones disponibles";
-        selector.appendChild(opt);
+      if (!Array.isArray(songs) || songs.length === 0) {
+        selector.innerHTML = `<option>No hay canciones disponibles</option>`;
+        console.warn("⚠️ No se encontraron canciones en /uploads");
         return;
       }
 
-      songs.forEach(song => {
-        const opt = document.createElement("option");
-        opt.value = song;
-        opt.textContent = song;
-        selector.appendChild(opt);
-      });
+      selector.innerHTML = songs
+        .map((s) => `<option value="${s}">${s}</option>`)
+        .join("");
 
-      console.log(`✅ Canciones cargadas: ${songs.length}`);
-    } catch (err) {
-      console.error("❌ Error al cargar canciones:", err);
+      console.log("🎵 Canciones disponibles:", songs);
+      labelEstado.textContent = "✅ Canciones cargadas correctamente";
+      labelEstado.className = "ok";
+    } catch (e) {
+      console.error("❌ Error al obtener canciones:", e);
+      labelEstado.textContent = "❌ Error al cargar canciones";
+      labelEstado.className = "bad";
     }
   }
 
-  await cargarCanciones();
+  cargarCanciones();
 
-  // ==========================
-  // 2️⃣ Evento: cargar canción seleccionada
-  // ==========================
+  // ===================================================
+  // 🔹 Cargar y reproducir canción seleccionada
+  // ===================================================
   btnCargar.addEventListener("click", async () => {
     const seleccionada = selector.value;
     if (!seleccionada || seleccionada === "No hay canciones disponibles") {
@@ -61,21 +62,72 @@ window.addEventListener("DOMContentLoaded", async () => {
     console.log(`🎵 Cargando canción: ${ruta}`);
 
     try {
-      // Cargar y reproducir canción
+      // Cargar y reproducir canción localmente
       audio.src = ruta;
       audio.pause();
       audio.load();
       audio.oncanplay = () => audio.play();
 
-      // Notificar a Usuario 2
+      // 🔹 Sincronizar con User2
       selectSong(seleccionada);
 
-      // Generar referencia (Hz) y cargar en karaoke.js
+      // 🔹 Generar referencia Hz (guía karaoke)
       app.setSong(ruta);
 
       console.log(`✅ Canción reproducida y sincronizada: ${seleccionada}`);
+      labelEstado.textContent = `🎶 Reproduciendo: ${seleccionada}`;
+      labelEstado.className = "ok";
     } catch (err) {
       console.error("❌ Error al cargar la canción:", err);
+      labelEstado.textContent = "Error al cargar canción";
+      labelEstado.className = "bad";
     }
   });
+
+  // ===================================================
+  // 🔹 Botones de reproducción locales
+  // ===================================================
+  btnPlay.addEventListener("click", () => {
+    if (!audio.src) return alert("Primero carga una canción.");
+    audio.play();
+    window.socket.emit("musicControl", { action: "play", from: getUserName() });
+    console.log("▶️ Reproducción iniciada");
+  });
+
+  btnPause.addEventListener("click", () => {
+    if (!audio.src) return;
+    audio.pause();
+    window.socket.emit("musicControl", { action: "pause", from: getUserName() });
+    console.log("⏸️ Reproducción pausada");
+  });
+
+  // ===================================================
+  // 🔹 Reacción a comandos de reproducción remota
+  // ===================================================
+  if (window.socket) {
+    window.socket.on("musicControl", (data) => {
+      if (data.from === getUserName()) return; // evita duplicar tu propio evento
+
+      if (data.action === "play") {
+        audio.play().catch((err) =>
+          console.warn("⚠️ Error al reproducir remotamente:", err)
+        );
+        labelEstado.textContent = "▶️ Reproduciendo por control remoto";
+        labelEstado.className = "ok";
+      }
+
+      if (data.action === "pause") {
+        audio.pause();
+        labelEstado.textContent = "⏸️ Pausado por control remoto";
+        labelEstado.className = "warn";
+      }
+    });
+  }
+
+  // ===================================================
+  // 🔹 Estado de depuración
+  // ===================================================
+  audio.addEventListener("playing", () => console.log("🎶 Reproduciendo..."));
+  audio.addEventListener("pause", () => console.log("⏸️ Pausado"));
+  audio.addEventListener("ended", () => console.log("🏁 Canción terminada"));
 });

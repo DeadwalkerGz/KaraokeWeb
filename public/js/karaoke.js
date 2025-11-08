@@ -383,4 +383,6 @@ class KaraokeApp {
   }
 }
 
-window.KaraokeApp = KaraokeApp;
+export { KaraokeApp };
+
+//window.KaraokeApp = KaraokeApp;

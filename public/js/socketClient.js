@@ -4,6 +4,9 @@
 // Detecta si es Host (PC) o User2 (móvil)
 // ===================================================
 
+// 🔹 Asegurar que 'io' esté disponible incluso dentro de módulos ES6
+const io = window.io || globalThis.io;
+
 // --- Conexión automática ---
 const socket = io("http://192.168.1.8:3000", {
   transports: ["websocket"], // más estable y rápido
@@ -15,25 +18,49 @@ const socket = io("http://192.168.1.8:3000", {
 // 🔹 Hacer el socket accesible globalmente
 window.socket = socket; // ✅ IMPORTANTE para interacción con el HTML
 
-// --- Identificación automática del usuario ---
-let userName = "User";
-if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-  userName = "User2"; // si es un móvil
-} else {
-  userName = "Host-PC"; // si es el PC principal
+// ===================================================
+// 🎭 Selección manual del rol (sin romper lo existente)
+// ===================================================
+let userName = localStorage.getItem("karaokeRole");
+
+if (!userName) {
+  const rolElegido = prompt("Selecciona tu rol:\nEscribe 'Host' o 'User2'").trim();
+  if (rolElegido && ["host", "user2"].includes(rolElegido.toLowerCase())) {
+    userName = rolElegido.toLowerCase() === "host" ? "Host-PC" : "User2";
+    localStorage.setItem("karaokeRole", userName);
+  } else {
+    userName = "User2"; // valor por defecto si no escribe nada válido
+    localStorage.setItem("karaokeRole", userName);
+  }
 }
+
+console.log(`🎭 Rol establecido: ${userName}`);
+
 
 // ===================================================
 // 🔸 Estado de conexión
 // ===================================================
 socket.on("connect", () => {
   console.log(`🟢 Conectado al servidor como ${userName} (${socket.id})`);
-  // 🔹 Notifica al servidor el nombre del usuario
   socket.emit("setUser", userName);
+
+  // 🔹 Actualizar estado visual cuando realmente se conecta
+  const labelEstado = document.getElementById("label-estado");
+  if (labelEstado) {
+    labelEstado.textContent = "🟢 Conectado al servidor";
+    labelEstado.className = "ok";
+  }
 });
 
 socket.on("disconnect", () => {
   console.warn("🔴 Desconectado del servidor Karaoke");
+
+  // 🔹 Actualizar estado visual cuando se desconecta
+  const labelEstado = document.getElementById("label-estado");
+  if (labelEstado) {
+    labelEstado.textContent = "🔴 Desconectado del servidor";
+    labelEstado.className = "bad";
+  }
 });
 
 // ===================================================
@@ -79,3 +106,7 @@ export function selectSong(song) {
 export function getUserName() {
   return userName;
 }
+
+// ===================================================
+// 🔸 Fin del cliente Socket.IO
+// ===================================================
