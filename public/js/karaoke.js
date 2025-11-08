@@ -24,6 +24,7 @@ class KaraokeApp {
     this.minHz = 80;
     this.maxHz = 1000;
     this.currentHz = null;
+    this.refHz = null; // Frecuencia actual de la pista de referencia
     this.currentRms = 0;  // nivel de energía de la voz
     this.lastHz = 0;      // última frecuencia válida (para suavizado)
 
@@ -224,14 +225,12 @@ class KaraokeApp {
     const h = this.canvas.height;
     ctx.clearRect(0, 0, w, h);
 
-    // Fondo dinámico según energía de voz
-    const energia = Math.min(1, this.currentRms * 8); // escala 0–1
-    ctx.fillStyle = `rgba(0, 255, 0, ${energia * 0.25})`;
+    ctx.fillStyle = "#0b0f15";
     ctx.fillRect(0, 0, w, h);
 
-
-    // Fondo
-    ctx.fillStyle = "#0b0f15";
+    // Efecto de energía sobre el fondo
+    const energia = Math.min(1, this.currentRms * 8);
+    ctx.fillStyle = `rgba(0, 255, 0, ${energia * 0.25})`;
     ctx.fillRect(0, 0, w, h);
 
     // Cuadrícula
@@ -251,6 +250,12 @@ class KaraokeApp {
     if (this.reference && this.audioEl && !isNaN(this.audioEl.currentTime)) {
     const t = this.audioEl.currentTime;
 
+    // 🎵 Calcular tono actual de la referencia (solo una vez por frame)
+    let idx = this.reference.findIndex(p => p.t > t);
+    if (idx === -1) idx = this.reference.length - 1;
+    const punto = this.reference[idx];
+    this.refHz = punto ? punto.hz : null;
+
     // Muestra los últimos 5 segundos de referencia (más fluido)
     const segmentos = this.reference.filter(p => p.t <= t && p.t >= t - 5);
 
@@ -258,10 +263,8 @@ class KaraokeApp {
         ctx.strokeStyle = "#5db3ff";
         ctx.lineWidth = 2;
         ctx.beginPath();
-
-        // Dibuja la línea azul
         segmentos.forEach((p, i) => {
-        const x = (i / (segmentos.length - 1)) * w; // recorre todo el ancho
+        const x = (i / (segmentos.length - 1)) * w;
         const y = this._mapHzToY(p.hz);
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
@@ -279,6 +282,21 @@ class KaraokeApp {
         ctx.fill();
         ctx.shadowBlur = 0;
         }
+        // 🎯 Barra de precisión (comparación entre mic y canción)
+        if (this.currentHz && this.refHz) {
+        const diff = Math.abs(this.currentHz - this.refHz);
+        const precision = Math.max(0, 1 - diff / 50); // 0–1 (tolerancia de ±50 Hz)
+        const barWidth = w * precision;
+
+        ctx.fillStyle = precision > 0.8 ? "#4cff4c" : precision > 0.5 ? "#ffb84c" : "#ff4c4c";
+        ctx.fillRect(0, h - 8, barWidth, 6);
+
+        ctx.font = "12px monospace";
+        ctx.fillStyle = "#ccc";
+        ctx.textAlign = "center";
+        ctx.fillText(`Δ ${diff.toFixed(1)} Hz`, w / 2, h - 15);
+        }
+
     }
     }
 
@@ -305,6 +323,22 @@ class KaraokeApp {
     ctx.fillText(`${this.minHz} Hz`, 8, h - 8);
     ctx.textAlign = "right";
     ctx.fillText(`${this.maxHz} Hz`, w - 8, 14);
+
+    // Mostrar valores actuales de frecuencia
+    ctx.fillStyle = "#9ad1ff";
+    ctx.font = "14px monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(
+    `🎙️ Mic: ${this.currentHz ? this.currentHz.toFixed(1) + " Hz" : "—"}`,
+    10,
+    20
+    );
+    ctx.fillText(
+    `🎵 Song: ${this.refHz ? this.refHz.toFixed(1) + " Hz" : "—"}`,
+    10,
+    40
+    );
+
   }
 
   _status(text, lvl = "") {
