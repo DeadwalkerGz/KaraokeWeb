@@ -130,4 +130,8 @@ document.addEventListener("DOMContentLoaded", () => {
   audio.addEventListener("playing", () => console.log("🎶 Reproduciendo..."));
   audio.addEventListener("pause", () => console.log("⏸️ Pausado"));
   audio.addEventListener("ended", () => console.log("🏁 Canción terminada"));
+
+  
+  // 🟢 Inicializar micrófono y afinador
+  app.init(); // <---- AGREGA ESTA LÍNEA AQUÍ
 });
