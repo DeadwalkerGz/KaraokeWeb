@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Karaoke Web Host</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
+
 <body>
   <h1>Karaoke Web 🎤 (Host-PC)</h1>
 
@@ -44,5 +46,57 @@
   <!-- 3) Tu app -->
   <script type="module" src="js/karaoke.js"></script>
   <script type="module" src="js/script.js"></script>
+  <!-- 🔹 Selector de Rol (solo aparece la primera vez) -->
+  <div id="role-overlay" class="overlay">
+    <div class="role-box">
+      <h2>🎤 Selecciona tu rol</h2>
+      <p>Elige cómo quieres participar:</p>
+      <div class="role-buttons">
+        <button id="btn-host">🎙️ Host</button>
+        <button id="btn-user2">🎧 User2</button>
+      </div>
+    </div>
+  </div>
+  <!-- 🎭 Selector visual de rol -->
+  <div id="role-overlay" style="
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 15, 21, 0.95);
+  color: #fff;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  font-family: system-ui, sans-serif;
+">
+    <h2 style="color:#80c8ff; margin-bottom: 20px;">Selecciona tu rol</h2>
+    <div style="display: flex; gap: 20px;">
+      <button id="btn-host" style="
+      background:#5db3ff;
+      color:#000;
+      border:none;
+      border-radius:8px;
+      padding:12px 24px;
+      font-size:16px;
+      font-weight:bold;
+      cursor:pointer;
+    ">🎙️ Host-PC</button>
+
+      <button id="btn-user2" style="
+      background:#410b57;
+      color:#fff;
+      border:none;
+      border-radius:8px;
+      padding:12px 24px;
+      font-size:16px;
+      font-weight:bold;
+      cursor:pointer;
+    ">🎧 Usuario 2</button>
+    </div>
+    <p style="margin-top:30px; font-size:13px; color:rgb(0, 26, 255);">(Tu elección se guardará automáticamente)</p>
+  </div>
+
 </body>
+
 </html>

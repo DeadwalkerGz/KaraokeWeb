@@ -21,17 +21,45 @@ window.socket = socket; // ✅ IMPORTANTE para interacción con el HTML
 // ===================================================
 // 🎭 Selección manual del rol (sin romper lo existente)
 // ===================================================
-let userName;
-const rolElegido = prompt("Selecciona tu rol:\nEscribe 'Host' o 'User2'")?.trim();
+// 🎭 Selector de rol visual
+let userName = localStorage.getItem("karaokeRole");
 
-if (rolElegido && ["host", "user2"].includes(rolElegido.toLowerCase())) {
-  userName = rolElegido.toLowerCase() === "host" ? "Host-PC" : "User2";
-} else {
-  userName = "User2"; // valor por defecto
+function initRoleSelector() {
+  const overlay = document.getElementById("role-overlay");
+  const btnHost = document.getElementById("btn-host");
+  const btnUser2 = document.getElementById("btn-user2");
+
+  // Si ya hay rol guardado, ocultar selector
+  if (userName) {
+    overlay.style.display = "none";
+    console.log(`🎭 Rol restaurado: ${userName}`);
+    return;
+  }
+
+  // Mostrar el overlay
+  overlay.style.display = "flex";
+
+  // Asignar rol de Host
+  btnHost.onclick = () => {
+    userName = "Host-PC";
+    localStorage.setItem("karaokeRole", userName);
+    overlay.style.display = "none";
+    console.log("🎙️ Rol establecido: Host-PC");
+    window.location.reload();
+  };
+
+  // Asignar rol de User2
+  btnUser2.onclick = () => {
+    userName = "User2";
+    localStorage.setItem("karaokeRole", userName);
+    overlay.style.display = "none";
+    console.log("🎧 Rol establecido: User2");
+    window.location.reload();
+  };
 }
 
-console.log(`🎭 Rol establecido: ${userName}`);
-
+// Llamar al selector al cargar la página
+window.addEventListener("DOMContentLoaded", initRoleSelector);
 
 
 // ===================================================
@@ -107,3 +135,19 @@ export function getUserName() {
 // ===================================================
 // 🔸 Fin del cliente Socket.IO
 // ===================================================
+// ===================================================
+// 🧭 Reiniciar rol manualmente (Ctrl + R)
+// ===================================================
+function resetRole() {
+  localStorage.removeItem("karaokeRole");
+  alert("Rol eliminado. Se recargará la página para volver a elegir.");
+  window.location.reload();
+}
+
+// Escucha de teclado: Ctrl + R
+window.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key.toLowerCase() === "r") {
+    e.preventDefault();
+    resetRole();
+  }
+});
