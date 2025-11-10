@@ -3,97 +3,57 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Karaoke - Usuario 2 (Móvil)</title>
-  <style>
-    body {
-      margin: 0;
-      background: #0b0f15;
-      color: #fff;
-      font-family: system-ui, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      height: 100vh;
-      overflow: hidden;
-      text-align: center;
-    }
-
-    h1 {
-      margin: 10px 0;
-      color: #80c8ff;
-      font-size: 1.3em;
-    }
-
-    select, button {
-      font-size: 1em;
-      padding: 8px 12px;
-      margin: 6px;
-      border-radius: 6px;
-      border: none;
-    }
-
-    select {
-      background: #10161f;
-      color: #fff;
-      border: 1px solid #223046;
-    }
-
-    button {
-      background: #5db3ff;
-      color: #000;
-      font-weight: bold;
-    }
-
-    button:hover {
-      background: #7fc8ff;
-    }
-
-    #canvas-afinacion {
-      width: 90%;
-      height: 40vh;
-      background: #10161f;
-      border: 2px solid #223046;
-      border-radius: 12px;
-      margin-top: 10px;
-    }
-
-    .ok { color: #4cff4c; }
-    .warn { color: #ffb84c; }
-    .bad { color: #ff4c4c; }
-  </style>
+  <title>Karaoke Web 🎧 Usuario 2</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 
 <body>
-  <h1>🎤 Usuario 2 (Móvil)</h1>
+  <!-- 🔹 Encabezado -->
+  <header>
+    <h1>🎧 Usuario 2</h1>
+    <button id="btn-reset-rol" class="btn-secondary">Cambiar rol</button>
+  </header>
 
-  <!-- 🎵 Controles -->
-  <div>
-    <select id="selector-cancion"></select>
-    <button id="btn-cargar">Cargar</button>
-    <button id="btn-mic">🎙️ Micrófono</button>
-    <button id="btn-play">▶️ Play</button>
-    <button id="btn-pause">⏸️ Pausa</button>
-  </div>
+  <!-- 🔹 Contenido principal -->
+  <main>
+    <!-- 🎵 Controles -->
+    <section class="player">
+      <select id="selector-cancion"></select>
+      <button id="btn-cargar" class="btn-primary">Cargar</button>
+      <button id="btn-mic" class="btn-mic">🎙️ Micrófono</button>
+      <button id="btn-play" class="btn-icon">▶️ Play</button>
+      <button id="btn-pause" class="btn-icon">⏸️ Pausa</button>
+    </section>
 
-  <!-- 🎧 Afinador visual -->
-  <canvas id="canvas-afinacion" width="400" height="250"></canvas>
+    <!-- 🎯 Afinador -->
+    <section class="afinador">
+      <div id="afinador-container">
+        <canvas id="canvas-afinacion" width="400" height="250"></canvas>
+        <div class="etiquetas">
+          <span id="label-actual">– Hz</span>
+          <span id="label-estado" class="warn">Conectando...</span>
+        </div>
+      </div>
+    </section>
 
-  <!-- 🎵 Audio local -->
-  <audio id="audio" controls style="margin-top:10px; width:90%"></audio>
+    <!-- 🎵 Audio -->
+    <audio id="audio" controls style="width:100%"></audio>
 
-  <!-- 📊 Estado -->
-  <p id="label-actual">– Hz</p>
-  <p id="label-estado" class="warn">Conectando...</p>
-  <p id="letra-actual">🎶 Esperando canción...</p>
+    <!-- 🎶 Letra -->
+    <section class="letra">
+      <div id="letra-container">
+        <p id="letra-actual">🎶 Esperando canción...</p>
+      </div>
+    </section>
+  </main>
 
-  <!-- Socket.IO y scripts -->
+  <!-- 🔹 Scripts principales -->
   <script src="/socket.io/socket.io.js"></script>
   <script type="module">
     import { KaraokeApp } from "./js/karaoke.js";
     import { getUserName, selectSong } from "./js/socketClient.js";
 
-    // === Inicializar KaraokeApp ===
+    // Inicializar la app del karaoke
     const app = new KaraokeApp({
       audioId: "audio",
       btnMicId: "btn-mic",
@@ -102,10 +62,9 @@
       labelEstadoId: "label-estado",
       lyricsId: "letra-actual"
     });
-
     app.init();
 
-    // === Elementos básicos ===
+    // === Elementos principales ===
     const selector = document.getElementById("selector-cancion");
     const btnCargar = document.getElementById("btn-cargar");
     const audio = document.getElementById("audio");
@@ -124,21 +83,21 @@
     }
     cargarCanciones();
 
-    // === Enviar selección de canción a todos ===
+    // === Enviar selección de canción al host ===
     btnCargar.onclick = () => {
       const song = selector.value;
       if (!song) return alert("Selecciona una canción primero.");
       selectSong(song);
     };
 
-    // === Reaccionar cuando otro usuario selecciona canción ===
+    // === Reaccionar cuando el host selecciona canción ===
     window.socket.on("songSelected", (song) => {
       const ruta = `/uploads/${song}`;
       audio.src = ruta;
       audio.load();
       audio.oncanplay = () => {
         audio.play();
-        app.setSong(ruta); // 🔹 carga la referencia del artista
+        app.setSong(ruta); // carga la referencia del artista
       };
     });
 
@@ -155,11 +114,27 @@
       window.socket.emit("musicControl", { action: "pause", from: getUserName() });
     };
 
-    // === Reaccionar a eventos remotos ===
+    // === Reaccionar a eventos remotos (control del host) ===
     window.socket.on("musicControl", (data) => {
       if (data.from === getUserName()) return;
       if (data.action === "play") audio.play();
       if (data.action === "pause") audio.pause();
+    });
+
+    // === Comprobar rol guardado ===
+    const role = localStorage.getItem("karaokeRole");
+    if (role !== "user2") {
+      // Si no es user2, volver al index
+      window.location.href = "index.html";
+    }
+  </script>
+
+  <!-- 🔹 Reiniciar selección de rol -->
+  <script>
+    document.getElementById("btn-reset-rol").addEventListener("click", () => {
+      localStorage.removeItem("karaokeRole");
+      alert("Rol eliminado. Se mostrará el selector de nuevo al recargar.");
+      window.location.href = "index.html";
     });
   </script>
 </body>

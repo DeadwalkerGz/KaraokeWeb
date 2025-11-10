@@ -1,126 +1,112 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Karaoke Web Host</title>
+  <title>Karaoke Web 🎤 Host-PC</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 
 <body>
-  <h1>Karaoke Web 🎤 (Host-PC)</h1>
-  <h1>🎤 Karaoke</h1>
-  <button id="btn-reset-rol" style="
-  margin-bottom: 10px;
-  background: #222;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 0.9em;
-  cursor: pointer;
-">Cambiar rol</button>
+  <!-- 🔹 Encabezado -->
+  <header>
+    <h1>Karaoke Web 🎤</h1>
+    <button id="btn-reset-rol" class="btn-secondary">Cambiar rol</button>
+  </header>
 
+  <!-- 🔹 Contenido principal -->
+  <main>
+    <section class="player">
+      <select id="selector-cancion"></select>
+      <button id="btn-cargar" class="btn-primary">Cargar canción</button>
+      <button id="btn-play" class="btn-icon">▶️ Play</button>
+      <button id="btn-pause" class="btn-icon">⏸️ Pausa</button>
+      <button id="btn-mic" class="btn-mic">🎙️ Activar micrófono</button>
+      <audio id="audio" controls></audio>
+    </section>
 
-  <section class="player">
-    <select id="selector-cancion"></select>
-    <button id="btn-cargar">Cargar canción</button>
-
-    <!-- Controles explícitos -->
-    <button id="btn-play">▶️ Play</button>
-    <button id="btn-pause">⏸️ Pausa</button>
-
-    <button id="btn-mic">🎙️ Activar micrófono</button>
-    <audio id="audio" controls></audio>
-  </section>
-
-  <section class="afinador">
-    <div id="afinador-container">
-      <canvas id="canvas-afinacion" width="800" height="180"></canvas>
-      <div class="etiquetas">
-        <span id="label-actual">– Hz</span>
-        <span id="label-estado" class="warn">Conectando...</span>
+    <section class="afinador">
+      <div id="afinador-container">
+        <canvas id="canvas-afinacion" width="800" height="180"></canvas>
+        <div class="etiquetas">
+          <span id="label-actual">– Hz</span>
+          <span id="label-estado" class="warn">Conectando...</span>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="letra">
-    <div id="letra-container">
-      <p id="letra-actual">🎤 Canta aquí…</p>
-    </div>
-  </section>
+    <section class="letra">
+      <div id="letra-container">
+        <p id="letra-actual">🎤 Canta aquí…</p>
+      </div>
+    </section>
+  </main>
 
-  <!-- 1) Carga el cliente socket.io del servidor -->
-  <script src="/socket.io/socket.io.js"></script>
-  <!-- 2) Cliente propio: expone window.socket y actualiza #label-estado -->
-  <script type="module" src="js/socketClient.js"></script>
-  <!-- 3) Tu app -->
-  <script type="module" src="js/karaoke.js"></script>
-  <script type="module" src="js/script.js"></script>
-  <!-- 🔹 Selector de Rol (solo aparece la primera vez) -->
-  <div id="role-overlay" class="overlay">
+  <!-- 🔹 Overlay de selección de rol -->
+  <div id="role-overlay" class="overlay hidden">
     <div class="role-box">
-      <h2>🎤 Selecciona tu rol</h2>
+      <h2>🎭 Selecciona tu rol</h2>
       <p>Elige cómo quieres participar:</p>
       <div class="role-buttons">
-        <button id="btn-host">🎙️ Host</button>
-        <button id="btn-user2">🎧 User2</button>
+        <button id="btn-host" class="btn-primary">🎙️ Host-PC</button>
+        <button id="btn-user2" class="btn-secondary">🎧 Usuario 2</button>
       </div>
+      <p class="overlay-note">(Tu elección se guardará automáticamente)</p>
     </div>
   </div>
-  <!-- 🎭 Selector visual de rol -->
-  <div id="role-overlay" style="
-  position: fixed;
-  inset: 0;
-  background: rgba(11, 15, 21, 0.95);
-  color: #fff;
-  display: none;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-  font-family: system-ui, sans-serif;
-">
-    <h2 style="color:#80c8ff; margin-bottom: 20px;">Selecciona tu rol</h2>
-    <div style="display: flex; gap: 20px;">
-      <button id="btn-host" style="
-      background:#5db3ff;
-      color:#000;
-      border:none;
-      border-radius:8px;
-      padding:12px 24px;
-      font-size:16px;
-      font-weight:bold;
-      cursor:pointer;
-    ">🎙️ Host-PC</button>
 
-      <button id="btn-user2" style="
-      background:#410b57;
-      color:#fff;
-      border:none;
-      border-radius:8px;
-      padding:12px 24px;
-      font-size:16px;
-      font-weight:bold;
-      cursor:pointer;
-    ">🎧 Usuario 2</button>
-    </div>
-    <p style="margin-top:30px; font-size:13px; color:rgb(0, 26, 255);">(Tu elección se guardará automáticamente)</p>
-  </div>
+  <!-- 🔹 Scripts -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="js/socketClient.js"></script>
+  <script type="module" src="js/karaoke.js"></script>
+  <script type="module" src="js/script.js"></script>
+
+  <!-- 🔹 Control del selector de rol -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
+      const overlay = document.getElementById("role-overlay");
+      const btnHost = document.getElementById("btn-host");
+      const btnUser2 = document.getElementById("btn-user2");
       const btnReset = document.getElementById("btn-reset-rol");
-      if (btnReset) {
-        btnReset.addEventListener("click", () => {
-          localStorage.removeItem("karaokeRole");
-          alert("Rol eliminado. Se mostrará el selector de nuevo al recargar.");
-          location.reload();
-        });
+
+      // Comprobar si ya hay un rol guardado
+      const savedRole = localStorage.getItem("karaokeRole");
+
+      if (!savedRole) {
+        // No hay rol → mostrar selector
+        overlay.classList.remove("hidden");
+      } else {
+        // Ya hay rol → actuar según el rol
+        overlay.classList.add("hidden");
+        if (savedRole === "user2") {
+          // Si es Usuario 2, redirigir a user2.html
+          window.location.href = "user2.html";
+        }
       }
+
+      // Selección de Host
+      btnHost.addEventListener("click", () => {
+        localStorage.setItem("karaokeRole", "host");
+        overlay.classList.add("hidden");
+        alert("Has seleccionado: Host-PC 🎙️");
+        location.reload();
+      });
+
+      // Selección de Usuario 2 (redirige)
+      btnUser2.addEventListener("click", () => {
+        localStorage.setItem("karaokeRole", "user2");
+        alert("Has seleccionado: Usuario 2 🎧");
+        window.location.href = "user2.html";
+      });
+
+      // Reiniciar selección
+      btnReset.addEventListener("click", () => {
+        localStorage.removeItem("karaokeRole");
+        alert("Rol eliminado. Se mostrará el selector al recargar.");
+        overlay.classList.remove("hidden");
+        location.reload();
+      });
     });
   </script>
-
 </body>
-
 </html>

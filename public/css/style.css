@@ -1,21 +1,308 @@
-:root { --fg:#e6e6e6; --bg:#0d0f13; --muted:#8a8f98; --ok:#28a745; --warn:#ffc107; --bad:#dc3545; }
+/* =========================================================
+   🎤 KARAOKE WEB - Tema oscuro moderno
+   ========================================================= */
 
-* { box-sizing: border-box; }
-html,body { margin:0; padding:0; font-family: system-ui, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--fg); }
-h1 { margin:16px; font-weight:600; }
+/* 🎨 Variables globales */
+:root {
+  --fg: #e6e6e6;
+  --bg: #0d1117;
+  --panel: #10161f;
+  --surface: #0a0c10;
+  --border: #1f2530;
+  --muted: #8a8f98;
+  --accent: #5db3ff;
+  --accent2: #7f5cff;
+  --ok: #28a745;
+  --warn: #ffc107;
+  --bad: #dc3545;
+  --radius: 12px;
+  --transition: 0.25s ease;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
 
-section { margin: 16px; }
+/* =========================================================
+   ⚙️ Base
+   ========================================================= */
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-.player { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-#btn-mic { padding:8px 12px; border:0; border-radius:10px; background:#1f2937; color:#fff; cursor:pointer; }
-#btn-mic:hover { filter:brightness(1.1); }
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
 
-#afinador-container { position:relative; background:#0a0c10; border:1px solid #1f2530; border-radius:14px; padding:12px; }
-#canvas-afinacion { width:100%; height:180px; display:block; background:linear-gradient(180deg,#0f1420,#0a0c10); border-radius:10px; }
-.etiquetas { display:flex; justify-content:space-between; margin-top:8px; color:var(--muted); font-size:14px; }
+/* Suaviza desplazamientos y colores */
+body {
+  transition: background var(--transition), color var(--transition);
+}
+
+/* =========================================================
+   🧭 Estructura
+   ========================================================= */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--panel);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+h1 {
+  font-size: 1.6em;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+main {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* =========================================================
+   🔘 Botones
+   ========================================================= */
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1em;
+  font-weight: 600;
+  transition: all var(--transition);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  user-select: none;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  color: #000;
+  padding: 10px 18px;
+}
+.btn-primary:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--border);
+  color: #fff;
+  padding: 9px 16px;
+}
+.btn-secondary:hover {
+  background: #2a3342;
+  transform: translateY(-1px);
+}
+
+.btn-icon {
+  background: #151b25;
+  color: var(--fg);
+  padding: 8px 12px;
+}
+.btn-icon:hover {
+  background: #1f2530;
+  transform: scale(1.05);
+}
+
+.btn-mic {
+  background: var(--accent2);
+  color: #fff;
+  padding: 9px 16px;
+}
+.btn-mic:hover {
+  filter: brightness(1.2);
+  transform: translateY(-1px);
+}
+
+/* =========================================================
+   🎧 Player
+   ========================================================= */
+.player {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+select {
+  background: var(--panel);
+  color: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  transition: border var(--transition), box-shadow var(--transition);
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(93, 179, 255, 0.4);
+}
+
+/* =========================================================
+   🎯 Afinador
+   ========================================================= */
+#afinador-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  transition: transform var(--transition);
+}
+#afinador-container:hover {
+  transform: scale(1.01);
+}
+
+#canvas-afinacion {
+  width: 100%;
+  height: 180px;
+  display: block;
+  background: linear-gradient(180deg, #0f1420, #0a0c10);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.etiquetas {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 500;
+}
 #label-estado.ok { color: var(--ok); }
 #label-estado.warn { color: var(--warn); }
 #label-estado.bad { color: var(--bad); }
 
-#letra-container { margin-top:8px; padding:12px; background:#0a0c10; border:1px solid #1f2530; border-radius:10px; min-height:64px; }
-#letra-actual { margin:0; font-size:18px; }
+/* =========================================================
+   🎵 Letra
+   ========================================================= */
+#letra-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  min-height: 70px;
+  line-height: 1.5;
+  font-size: 18px;
+  color: var(--fg);
+  box-shadow: var(--shadow);
+  transition: background var(--transition);
+}
+#letra-container:hover {
+  background: #111822;
+}
+
+/* =========================================================
+   🎭 Overlay de rol
+   ========================================================= */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 15, 21, 0.97);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(6px);
+  transition: opacity var(--transition), visibility var(--transition);
+}
+
+.overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.role-box {
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 32px 40px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.role-box h2 {
+  color: var(--accent);
+  margin-bottom: 12px;
+  font-size: 1.4em;
+}
+
+.role-buttons {
+  display: flex;
+  gap: 24px;
+  margin-top: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.overlay-note {
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+/* =========================================================
+   💫 Animaciones sutiles
+   ========================================================= */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+section, header, .role-box {
+  animation: fadeIn 0.4s ease both;
+}
+
+/* =========================================================
+   📱 Responsive Design
+   ========================================================= */
+@media (max-width: 768px) {
+  header { flex-direction: column; gap: 8px; text-align: center; }
+  h1 { font-size: 1.3em; }
+  main { padding: 16px; gap: 16px; }
+  #canvas-afinacion { height: 140px; }
+  .player { justify-content: center; }
+  .role-box { width: 90%; padding: 24px 16px; }
+}
+
+@media (max-width: 420px) {
+  h1 { font-size: 1.1em; }
+  button { font-size: 0.9em; }
+  select { width: 100%; }
+}
+/* =========================================================
+   🌈 Animación de gradiente en el afinador
+   ========================================================= */
+@keyframes gradienteAfinador {
+  0% {
+    background: linear-gradient(90deg, #5db3ff, #7f5cff);
+  }
+  50% {
+    background: linear-gradient(90deg, #7f5cff, #5db3ff);
+  }
+  100% {
+    background: linear-gradient(90deg, #5db3ff, #7f5cff);
+  }
+}
+
+#canvas-afinacion {
+  animation: gradienteAfinador 6s ease-in-out infinite;
+  background-size: 200% 200%;
+  border: 1px solid var(--border);
+}

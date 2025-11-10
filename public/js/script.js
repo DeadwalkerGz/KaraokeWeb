@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const labelEstado = document.getElementById("label-estado");
 
   // KaraokeApp (controlador de análisis)
-  const app = new KaraokeApp(audio);
+  const app = new KaraokeApp({ audioId: "audio" });
 
   // ===================================================
   // 🔹 Cargar lista de canciones disponibles
@@ -66,7 +66,16 @@ document.addEventListener("DOMContentLoaded", () => {
       audio.src = ruta;
       audio.pause();
       audio.load();
-      audio.oncanplay = () => audio.play();
+      audio.oncanplay = () => {
+        const userName = localStorage.getItem("karaokeRole");
+        if (userName === "Host-PC") {
+          console.log("⏱️ Host retrasará 1 s antes de reproducir...");
+          setTimeout(() => audio.play(), 1000); // <-- retardo de 1 s solo para Host
+        } else {
+          audio.play();
+        }
+      };
+
 
       // 🔹 Sincronizar con User2
       selectSong(seleccionada);
@@ -89,10 +98,21 @@ document.addEventListener("DOMContentLoaded", () => {
   // ===================================================
   btnPlay.addEventListener("click", () => {
     if (!audio.src) return alert("Primero carga una canción.");
-    audio.play();
-    window.socket.emit("musicControl", { action: "play", from: getUserName() });
-    console.log("▶️ Reproducción iniciada");
+    const userName = localStorage.getItem("karaokeRole");
+    if (userName === "Host-PC") {
+      console.log("⏱️ Host retrasará 1 s antes de reproducir...");
+      setTimeout(() => {
+        audio.play();
+        window.socket.emit("musicControl", { action: "play", from: getUserName() });
+        console.log("▶️ Reproducción iniciada con retardo");
+      }, 1000);
+    } else {
+      audio.play();
+      window.socket.emit("musicControl", { action: "play", from: getUserName() });
+      console.log("▶️ Reproducción iniciada (sin retardo)");
+    }
   });
+
 
   btnPause.addEventListener("click", () => {
     if (!audio.src) return;
@@ -131,7 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
   audio.addEventListener("pause", () => console.log("⏸️ Pausado"));
   audio.addEventListener("ended", () => console.log("🏁 Canción terminada"));
 
-  
+
   // 🟢 Inicializar micrófono y afinador
   app.init(); // <---- AGREGA ESTA LÍNEA AQUÍ
 });

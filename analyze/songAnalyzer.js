@@ -57,6 +57,12 @@ export async function analyzeSong(fileName) {
 
   if (!fs.existsSync(refDir)) fs.mkdirSync(refDir, { recursive: true });
 
+  // ✅ Verificar que el archivo exista antes de leerlo
+  if (!fs.existsSync(filePath)) {
+    console.error("❌ No se encontró el archivo:", filePath);
+    return;
+  }
+
   const buffer = fs.readFileSync(filePath);
   const audioBuffer = await decode(buffer);
   const channelData = audioBuffer.getChannelData(0);
@@ -87,4 +93,15 @@ export async function analyzeSong(fileName) {
   fs.writeFileSync(outPath, JSON.stringify(reference, null, 2));
   console.log(`✅ Referencia (Hz + RMS) generada: ${outPath}`);
   return outPath;
+}
+
+// ===============================================
+// 🚀 Ejecución directa desde la terminal
+// Permite usar: node analyze/songAnalyzer.js archivo.mp3
+// ===============================================
+if (process.argv[2]) {
+  const fileName = process.argv[2];
+  analyzeSong(fileName)
+    .then(() => console.log(`🏁 Análisis completado para ${fileName}`))
+    .catch((err) => console.error("❌ Error en el análisis:", err));
 }
