@@ -123,7 +123,7 @@ socket.on("songSelected", (song) => {
   console.log(`🎵 Canción seleccionada por otro usuario: ${song}`);
   const audio = document.getElementById("audio");
   if (audio) {
-    audio.src = `/uploads/${song}`;
+    audio.src = `/canciones/${song}`;
     audio.play();
   }
 });
@@ -140,8 +140,60 @@ export function getUserName() {
 }
 
 // ===================================================
+// 🔸 Sincronización de reproducción (Play sincronizado)
+// ===================================================
+
+// Asegurar que el elemento <audio> exista cuando el DOM esté listo
+let audioElement = null;
+window.addEventListener("DOMContentLoaded", () => {
+  audioElement = document.getElementById("audio");
+});
+
+// Al recibir la orden de reproducir desde otro usuario
+socket.on("playSong", (data) => {
+  const { sender } = data;
+  if (!audioElement) return;
+
+  // Si el Host envió el Play (tú no eres host)
+  if (sender === "Host-PC" && userName !== "Host-PC") {
+    console.log("▶️ Reproduciendo instantáneamente (orden del Host)");
+    audioElement.currentTime = 0;
+    audioElement.play();
+  }
+
+  // Si el User2 envió el Play (tú eres el host)
+  if (sender === "User2" && userName === "Host-PC") {
+    console.log("▶️ Reproduciendo instantáneamente (orden del User2)");
+    audioElement.currentTime = 0;
+    audioElement.play();
+  }
+});
+
+// Función para emitir la señal de Play según el rol
+export function playSongSync() {
+  if (!audioElement) return;
+
+  if (userName === "Host-PC") {
+    // 🔹 El Host espera 1 segundo antes de reproducir
+    console.log("⏱️ Host iniciará la canción con 1 s de retardo (sincronización)");
+    setTimeout(() => {
+      audioElement.currentTime = 0;
+      audioElement.play();
+      socket.emit("playSong", { sender: userName });
+    }, 1000);
+  } else {
+    // 🔹 El User2 reproduce instantáneamente
+    console.log("⚡ User2 inicia reproducción instantánea");
+    audioElement.currentTime = 0;
+    audioElement.play();
+    socket.emit("playSong", { sender: userName });
+  }
+}
+
+// ===================================================
 // 🔸 Fin del cliente Socket.IO
 // ===================================================
+
 // ===================================================
 // 🧭 Reiniciar rol manualmente (Ctrl + R)
 // ===================================================

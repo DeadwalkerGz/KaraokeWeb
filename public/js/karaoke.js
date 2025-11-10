@@ -45,6 +45,21 @@ class KaraokeApp {
     this.startTime = 0;
 
     this._raf = null;
+
+    // =========================================================
+    // 🔹 CONFIGURACIÓN DE DELAY POR CANCIÓN (inicio de Johnson)
+    // =========================================================
+    this.songDelays = {
+      fuisteTu: 11,         // Espera 7.5 segundos antes de comparar
+      BTS_______PROOF_CDonly__StillWithYouAcapellabyJUNGKOOK: 1,        // Sin delay (empieza de inmediato)
+      SinceraTe: 5.1,       // Espera 5.1 s
+      on: 2.3,                // Espera 2.3 s
+      blackbird: 10.0         // Espera 10 s
+    };
+
+    // 🔹 Valor activo del delay según la canción cargada
+    this.timeOffset = 0;
+
   }
 
   async init() {
@@ -59,19 +74,33 @@ class KaraokeApp {
 
     this._draw(0);
   }
-
-  // 🔹 Nueva función para cargar canción y su referencia
+  // 🔹 Nueva función para cargar canción y su referencia (con delay manual)
   async setSong(path) {
     if (!path) return;
+
+    // 🔹 Detener cualquier reproducción previa
     this.audioEl.pause();
-    this.audioEl.src = path;
+
+    // 🔹 Obtener nombre base del archivo (sin extensión)
+    const baseName = path.split("/").pop().replace(/\.[^/.]+$/, "");
+
+    // 🔹 Configurar delay manual (por nombre exacto del archivo)
+    this.timeOffset = this.songDelays[baseName] || 0;
+    console.log(`⏱️ Delay configurado para "${baseName}": ${this.timeOffset}s`);
+
+    // =======================================================
+    // 🎧 Cargar versión completa desde /canciones/
+    // =======================================================
+    const fullSongPath = `/canciones/${baseName}.mp3`;
+    this.audioEl.src = fullSongPath;
     this.audioEl.load();
     this.audioEl.oncanplay = () => this.audioEl.play();
-    this._status(`Canción cargada: ${path}`, "ok");
+    this._status(`🎵 Reproduciendo versión completa: ${baseName}`, "ok");
 
-
-    // Intenta cargar su referencia de frecuencia
-    const refName = path.split("/").pop().replace(/\.[^/.]+$/, "_ref.json");
+    // =======================================================
+    // 🔸 Cargar referencia (Johnson) asociada a la canción
+    // =======================================================
+    const refName = baseName + "_ref.json";
     try {
       const res = await fetch(`/references/${refName}`);
       if (res.ok) {
@@ -85,7 +114,26 @@ class KaraokeApp {
       console.error("❌ Error al cargar referencia:", err);
       this.reference = null;
     }
+    // =======================================================
+    // 🔸 Cargar letra sincronizada (si existe en /data/)
+    // =======================================================
+    try {
+      const lyricName = baseName + ".json";
+      const lyricRes = await fetch(`/data/${lyricName}`);
+      if (lyricRes.ok) {
+        this.lyrics = await lyricRes.json();
+        console.log(`📝 Letra sincronizada cargada: ${lyricName}`);
+      } else {
+        console.warn(`⚠️ No se encontró letra para ${lyricName}`);
+      }
+    } catch (err) {
+      console.error("❌ Error al cargar letra:", err);
+      this.lyrics = null;
+    }
+
   }
+
+
 
   async toggleMic() {
     if (this.stream) return this._stopMic();
@@ -281,7 +329,18 @@ class KaraokeApp {
 
     // 🔵 Línea de referencia (pista musical centrada)
     if (this.reference && this.audioEl && !isNaN(this.audioEl.currentTime)) {
-      const t = this.audioEl.currentTime;
+      // 🕒 Aplicar delay manual configurado para esta canción
+      const t = this.audioEl.currentTime - (this.timeOffset || 0);
+
+      // 🚫 Si todavía estamos dentro del delay, no dibujar la referencia
+      if (t < 0) {
+        ctx.fillStyle = "#999";
+        ctx.font = "16px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText(`⏳ Esperando ${Math.abs(t).toFixed(1)}s para iniciar sincronización...`, w / 2, h / 2);
+        return; // 🛑 salir del _draw temporalmente
+      }
+
       const windowSize = 2; // segundos antes y después del punto actual
       const segmentos = this.reference.filter(p => p.t >= t - windowSize && p.t <= t + windowSize);
 

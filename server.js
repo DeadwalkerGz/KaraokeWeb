@@ -40,6 +40,12 @@ const PORT = 3000;
 // Middleware para servir archivos estáticos
 app.use(express.static(path.join(__dirname, "public")));
 
+// 🔹 Servir rutas específicas
+app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
+app.use("/references", express.static(path.join(__dirname, "public/references")));
+app.use("/canciones", express.static(path.join(__dirname, "public/canciones")));
+
+
 // ===============================
 // 🔹 SOCKET.IO — Comunicación en tiempo real
 // ===============================
