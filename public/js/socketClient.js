@@ -8,7 +8,7 @@
 const io = window.io || globalThis.io;
 
 // --- Conexión automática ---
-const socket = io("http://192.168.1.8:3000", {
+const socket = io({
   transports: ["websocket"], // más estable y rápido
   reconnection: true,
   reconnectionAttempts: 5,
@@ -21,20 +21,17 @@ window.socket = socket; // ✅ IMPORTANTE para interacción con el HTML
 // ===================================================
 // 🎭 Selección manual del rol (sin romper lo existente)
 // ===================================================
-let userName = localStorage.getItem("karaokeRole");
+let userName;
+const rolElegido = prompt("Selecciona tu rol:\nEscribe 'Host' o 'User2'")?.trim();
 
-if (!userName) {
-  const rolElegido = prompt("Selecciona tu rol:\nEscribe 'Host' o 'User2'").trim();
-  if (rolElegido && ["host", "user2"].includes(rolElegido.toLowerCase())) {
-    userName = rolElegido.toLowerCase() === "host" ? "Host-PC" : "User2";
-    localStorage.setItem("karaokeRole", userName);
-  } else {
-    userName = "User2"; // valor por defecto si no escribe nada válido
-    localStorage.setItem("karaokeRole", userName);
-  }
+if (rolElegido && ["host", "user2"].includes(rolElegido.toLowerCase())) {
+  userName = rolElegido.toLowerCase() === "host" ? "Host-PC" : "User2";
+} else {
+  userName = "User2"; // valor por defecto
 }
 
 console.log(`🎭 Rol establecido: ${userName}`);
+
 
 
 // ===================================================

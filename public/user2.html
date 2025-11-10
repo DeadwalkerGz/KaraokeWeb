@@ -79,41 +79,40 @@
   <!-- 🎧 Afinador visual -->
   <canvas id="canvas-afinacion" width="400" height="250"></canvas>
 
-  <!-- 🎵 Audio local (añadido para reproducir canción del host) -->
+  <!-- 🎵 Audio local -->
   <audio id="audio" controls style="margin-top:10px; width:90%"></audio>
 
   <!-- 📊 Estado -->
   <p id="label-actual">– Hz</p>
   <p id="label-estado" class="warn">Conectando...</p>
-  <p id="remotePitch">🎵 Host: – Hz</p>
+  <p id="letra-actual">🎶 Esperando canción...</p>
 
+  <!-- Socket.IO y scripts -->
   <script src="/socket.io/socket.io.js"></script>
   <script type="module">
-    import { getRemotePitch, sendPitch, selectSong, getUserName } from "./js/socketClient.js";
+    import { KaraokeApp } from "./js/karaoke.js";
+    import { getUserName, selectSong } from "./js/socketClient.js";
 
-    const canvas = document.getElementById("canvas-afinacion");
-    const ctx = canvas.getContext("2d");
-    const btnMic = document.getElementById("btn-mic");
-    const btnPlay = document.getElementById("btn-play");
-    const btnPause = document.getElementById("btn-pause");
-    const labelHz = document.getElementById("label-actual");
-    const labelEstado = document.getElementById("label-estado");
+    // === Inicializar KaraokeApp ===
+    const app = new KaraokeApp({
+      audioId: "audio",
+      btnMicId: "btn-mic",
+      canvasId: "canvas-afinacion",
+      labelHzId: "label-actual",
+      labelEstadoId: "label-estado",
+      lyricsId: "letra-actual"
+    });
+
+    app.init();
+
+    // === Elementos básicos ===
     const selector = document.getElementById("selector-cancion");
     const btnCargar = document.getElementById("btn-cargar");
     const audio = document.getElementById("audio");
+    const btnPlay = document.getElementById("btn-play");
+    const btnPause = document.getElementById("btn-pause");
 
-    let ac = null;
-    let analyser = null;
-    let stream = null;
-    let data = new Float32Array(2048);
-    let currentHz = null;
-    let lastHz = 0;
-    let rmsLevel = 0;
-    let raf = null;
-
-    // ================================
-    // 🔹 Obtener lista de canciones
-    // ================================
+    // === Cargar canciones desde el servidor ===
     async function cargarCanciones() {
       try {
         const res = await fetch("/api/songs");
@@ -125,258 +124,43 @@
     }
     cargarCanciones();
 
-    // ================================
-    // 🔹 Enviar selección de canción al Host
-    // ================================
+    // === Enviar selección de canción a todos ===
     btnCargar.onclick = () => {
       const song = selector.value;
       if (!song) return alert("Selecciona una canción primero.");
       selectSong(song);
-      labelEstado.textContent = `🎵 Enviada canción: ${song}`;
     };
 
-    // ================================
-    // 🔹 Control remoto de reproducción
-    // ================================
-btnPlay.onclick = () => {
-  // 🔹 Reproduce localmente también
-  if (audio && audio.src) {
-    audio.play().catch(err => console.warn("⚠️ Error local play:", err));
-  }
-
-  // 🔹 Envía la señal al host
-  window.socket.emit("musicControl", { action: "play", from: getUserName() });
-  labelEstado.textContent = "▶️ Reproduciendo (local + remoto)";
-};
-
-btnPause.onclick = () => {
-  // 🔹 Pausa localmente también
-  if (audio && !audio.paused) {
-    audio.pause();
-  }
-
-  // 🔹 Envía la señal al host
-  window.socket.emit("musicControl", { action: "pause", from: getUserName() });
-  labelEstado.textContent = "⏸️ Pausando (local + remoto)";
-};
-
-
-    // ================================
-    // 🔹 Micrófono local
-    // ================================
-    btnMic.onclick = async () => {
-      if (stream) return stopMic();
-      await startMic();
-    };
-
-    async function startMic() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        ac = new (window.AudioContext || window.webkitAudioContext)();
-        const src = ac.createMediaStreamSource(stream);
-        analyser = ac.createAnalyser();
-        analyser.fftSize = 2048;
-        src.connect(analyser);
-        btnMic.textContent = "🛑 Detener micrófono";
-        labelEstado.textContent = "🎙️ Micrófono activo";
-        loop();
-      } catch (err) {
-        labelEstado.textContent = "Error de micrófono";
-        labelEstado.className = "bad";
-        console.error(err);
-      }
-    }
-
-    function stopMic() {
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-      cancelAnimationFrame(raf);
-      btnMic.textContent = "🎙️ Activar micrófono";
-      labelEstado.textContent = "Micrófono apagado";
-      labelEstado.className = "warn";
-    }
-
-    // ================================
-    // 🔹 Detección de tono y visualización
-    // ================================
-    function detectPitchACF(buf, sampleRate) {
-      let rms = 0;
-      for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
-      rms = Math.sqrt(rms / buf.length);
-      if (rms < 0.01) return { hz: null, rms };
-
-      const SIZE = buf.length;
-      const c = new Float32Array(SIZE);
-      for (let lag = 0; lag < SIZE; lag++) {
-        let sum = 0;
-        for (let j = 0; j < SIZE - lag; j++) sum += buf[j] * buf[j + lag];
-        c[lag] = sum;
-      }
-
-      let d = 0;
-      while (d < SIZE && c[d] > c[d + 1]) d++;
-      let maxv = -1, maxi = -1;
-      for (let i2 = d; i2 < SIZE; i2++) {
-        if (c[i2] > maxv) { maxv = c[i2]; maxi = i2; }
-      }
-      if (maxi <= 0) return { hz: null, rms };
-
-      const x1 = c[maxi - 1], x2 = c[maxi], x3 = c[maxi + 1] || x2;
-      const a = (x1 + x3 - 2 * x2) / 2;
-      const b = (x3 - x1) / 2;
-      const shift = a ? -b / (2 * a) : 0;
-      const period = maxi + shift;
-      const freq = ac.sampleRate / period;
-      const hz = isFinite(freq) && freq >= 80 && freq <= 1000 ? freq : null;
-      return { hz, rms };
-    }
-
-    function loop() {
-      if (!analyser) return;
-      analyser.getFloatTimeDomainData(data);
-      const { hz, rms } = detectPitchACF(data, ac.sampleRate);
-      rmsLevel = rms;
-      if (hz) {
-        if (!lastHz) lastHz = hz;
-        currentHz = lastHz * 0.8 + hz * 0.2;
-        lastHz = currentHz;
-      } else {
-        currentHz = lastHz * 0.9;
-        if (currentHz < 80) currentHz = null;
-      }
-
-      if (currentHz) {
-        labelHz.textContent = `${currentHz.toFixed(1)} Hz`;
-        labelEstado.textContent = "🎶 Cantando";
-        labelEstado.className = "ok";
-        sendPitch(currentHz);
-      } else {
-        labelHz.textContent = "– Hz";
-        labelEstado.textContent = "Esperando tono…";
-        labelEstado.className = "warn";
-      }
-
-      draw();
-      raf = requestAnimationFrame(loop);
-    }
-
-    function mapHzToY(hz) {
-      const h = canvas.height;
-      if (!hz) return null;
-      const clamped = Math.min(1000, Math.max(80, hz));
-      const norm = (clamped - 80) / (1000 - 80);
-      return h - norm * h;
-    }
-
-    function draw() {
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = "#0b0f15";
-      ctx.fillRect(0, 0, w, h);
-
-      if (currentHz) {
-        const y = mapHzToY(currentHz);
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.strokeStyle = "#7fff7f";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-
-      const remote = getRemotePitch();
-      if (remote && remote.hz) {
-        const y2 = mapHzToY(remote.hz);
-        ctx.beginPath();
-        ctx.moveTo(0, y2);
-        ctx.lineTo(w, y2);
-        ctx.strokeStyle = "#d56eff";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 3]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = "#d56eff";
-        ctx.font = "13px system-ui";
-        ctx.fillText(`${remote.user}: ${remote.hz.toFixed(1)} Hz`, 10, y2 - 6);
-      }
-    }
-
-    // ===================================================
-    // 🎵 NUEVO: Reproducción con desbloqueo voluntario
-    // ===================================================
+    // === Reaccionar cuando otro usuario selecciona canción ===
     window.socket.on("songSelected", (song) => {
-      console.log(`🎵 Recibida canción del Host: ${song}`);
       const ruta = `/uploads/${song}`;
       audio.src = ruta;
       audio.load();
-
-      // Intentar reproducir automáticamente
-      audio.play().then(() => {
-        labelEstado.textContent = "🎶 Música sincronizada con el Host";
-        labelEstado.className = "ok";
-      }).catch(() => {
-        labelEstado.textContent = "🚫 Toca ▶️ para comenzar la música";
-        labelEstado.className = "warn";
-
-        let btnManual = document.getElementById("btn-reanudar");
-        if (!btnManual) {
-          btnManual = document.createElement("button");
-          btnManual.id = "btn-reanudar";
-          btnManual.textContent = "▶️ Reanudar música";
-          btnManual.style.marginTop = "10px";
-          btnManual.style.padding = "10px 15px";
-          btnManual.style.borderRadius = "6px";
-          btnManual.style.fontWeight = "bold";
-          btnManual.style.background = "#5db3ff";
-          btnManual.style.color = "#000";
-
-          btnManual.onclick = () => {
-            audio.play()
-              .then(() => {
-                labelEstado.textContent = "🎶 Música sincronizada con el Host";
-                labelEstado.className = "ok";
-                btnManual.remove();
-              })
-              .catch(err => {
-                console.error("❌ Error al intentar reproducir:", err);
-                labelEstado.textContent = "❌ No se pudo reproducir. Verifica el permiso de audio.";
-                labelEstado.className = "bad";
-              });
-          };
-
-          document.body.appendChild(btnManual);
-        }
-      });
+      audio.oncanplay = () => {
+        audio.play();
+        app.setSong(ruta); // 🔹 carga la referencia del artista
+      };
     });
 
-    // ===================================================
-    // 🔸 Mantiene sincronía play/pause remota
-    // ===================================================
-    document.addEventListener("DOMContentLoaded", () => {
-    // Espera a que window.socket esté disponible
-    const checkSocket = setInterval(() => {
-        if (window.socket && typeof window.socket.on === "function") {
-        clearInterval(checkSocket);
+    // === Sincronizar controles de música ===
+    btnPlay.onclick = () => {
+      if (!audio.src) return;
+      audio.play();
+      window.socket.emit("musicControl", { action: "play", from: getUserName() });
+    };
 
-        window.socket.on("musicControl", (data) => {
-            if (data.from === getUserName()) return;
-            if (data.action === "play") {
-            audio.play().then(() => {
-                labelEstado.textContent = "▶️ Reproduciendo (remoto)";
-                labelEstado.className = "ok";
-            }).catch(err => console.warn("⚠️ Error al reproducir remoto:", err));
-            }
-            if (data.action === "pause") {
-            audio.pause();
-            labelEstado.textContent = "⏸️ Pausado (remoto)";
-            labelEstado.className = "warn";
-            }
-        });
-        }
-    }, 200); // verifica cada 200 ms hasta que esté listo
+    btnPause.onclick = () => {
+      if (!audio.src) return;
+      audio.pause();
+      window.socket.emit("musicControl", { action: "pause", from: getUserName() });
+    };
+
+    // === Reaccionar a eventos remotos ===
+    window.socket.on("musicControl", (data) => {
+      if (data.from === getUserName()) return;
+      if (data.action === "play") audio.play();
+      if (data.action === "pause") audio.pause();
     });
-
   </script>
 </body>
 </html>

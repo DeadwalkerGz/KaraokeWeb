@@ -51,7 +51,7 @@ class KaraokeApp {
     try {
       const res = await fetch("data/letra.json");
       if (res.ok) this.lyrics = await res.json();
-    } catch (_) {}
+    } catch (_) { }
 
     this.btnMic.addEventListener("click", () => this.toggleMic());
     this.audioEl.addEventListener("play", () => (this.startTime = this.audioEl.currentTime));
@@ -133,32 +133,32 @@ class KaraokeApp {
 
     // 🔹 Suavizado y estabilidad de tono
     if (hz) {
-        if (!this.lastHz) this.lastHz = hz;
-        // mezcla tono nuevo con anterior para suavizar saltos
-        this.currentHz = this.lastHz * 0.8 + hz * 0.2;
-        this.lastHz = this.currentHz;
+      if (!this.lastHz) this.lastHz = hz;
+      // mezcla tono nuevo con anterior para suavizar saltos
+      this.currentHz = this.lastHz * 0.8 + hz * 0.2;
+      this.lastHz = this.currentHz;
     } else {
-        // si no hay tono válido, mantiene un poco el anterior antes de soltarlo
-        this.currentHz = this.lastHz * 0.9;
-        if (this.currentHz < this.minHz) this.currentHz = null;
+      // si no hay tono válido, mantiene un poco el anterior antes de soltarlo
+      this.currentHz = this.lastHz * 0.9;
+      if (this.currentHz < this.minHz) this.currentHz = null;
     }
 
     // 🔹 Actualización de la interfaz
     if (this.currentHz) {
-        this.labelHz.textContent = `${this.currentHz.toFixed(1)} Hz`;
-        this._status("Cantando", "ok");
-        this._pushHistory(this.currentHz);
+      this.labelHz.textContent = `${this.currentHz.toFixed(1)} Hz`;
+      this._status("Cantando", "ok");
+      this._pushHistory(this.currentHz);
     } else {
-        this.labelHz.textContent = "– Hz";
-        this._status("Esperando tono…", "warn");
-        this._pushHistory(null);
+      this.labelHz.textContent = "– Hz";
+      this._status("Esperando tono…", "warn");
+      this._pushHistory(null);
     }
 
     // 🔹 Control de FPS (60 por segundo aprox)
     const now = performance.now();
     if (now - this.lastDraw > 1000 / 60) {
-        this._draw(now);
-        this.lastDraw = now;
+      this._draw(now);
+      this.lastDraw = now;
     }
 
     this._raf = requestAnimationFrame(() => this._loop());
@@ -181,9 +181,9 @@ class KaraokeApp {
     const SIZE = buf.length;
     const c = new Float32Array(SIZE);
     for (let lag = 0; lag < SIZE; lag++) {
-        let sum = 0;
-        for (let j = 0; j < SIZE - lag; j++) sum += buf[j] * buf[j + lag];
-        c[lag] = sum;
+      let sum = 0;
+      for (let j = 0; j < SIZE - lag; j++) sum += buf[j] * buf[j + lag];
+      c[lag] = sum;
     }
 
     // Buscar primer pico significativo
@@ -191,7 +191,7 @@ class KaraokeApp {
     while (d < SIZE && c[d] > c[d + 1]) d++;
     let maxv = -1, maxi = -1;
     for (let i = d; i < SIZE; i++) {
-        if (c[i] > maxv) { maxv = c[i]; maxi = i; }
+      if (c[i] > maxv) { maxv = c[i]; maxi = i; }
     }
     if (maxi <= 0) return { hz: null, rms };
 
@@ -252,56 +252,56 @@ class KaraokeApp {
 
     // 🔵 Línea de referencia (pista)
     if (this.reference && this.audioEl && !isNaN(this.audioEl.currentTime)) {
-    const t = this.audioEl.currentTime;
+      const t = this.audioEl.currentTime;
 
-    // 🎵 Calcular tono actual de la referencia (solo una vez por frame)
-    let idx = this.reference.findIndex(p => p.t > t);
-    if (idx === -1) idx = this.reference.length - 1;
-    const punto = this.reference[idx];
-    this.refHz = punto ? punto.hz : null;
+      // 🎵 Calcular tono actual de la referencia (solo una vez por frame)
+      let idx = this.reference.findIndex(p => p.t > t);
+      if (idx === -1) idx = this.reference.length - 1;
+      const punto = this.reference[idx];
+      this.refHz = punto ? punto.hz : null;
 
-    // Muestra los últimos 5 segundos de referencia (más fluido)
-    const segmentos = this.reference.filter(p => p.t <= t && p.t >= t - 5);
+      // Muestra los últimos 5 segundos de referencia (más fluido)
+      const segmentos = this.reference.filter(p => p.t <= t && p.t >= t - 5);
 
-    if (segmentos.length > 1) {
+      if (segmentos.length > 1) {
         ctx.strokeStyle = "#5db3ff";
         ctx.lineWidth = 2;
         ctx.beginPath();
         segmentos.forEach((p, i) => {
-        const x = (i / (segmentos.length - 1)) * w;
-        const y = this._mapHzToY(p.hz);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+          const x = (i / (segmentos.length - 1)) * w;
+          const y = this._mapHzToY(p.hz);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
         });
         ctx.stroke();
 
         // 🔘 Puntero actual (punto azul brillante)
         const puntoActual = segmentos[segmentos.length - 1];
         if (puntoActual) {
-        ctx.beginPath();
-        ctx.arc(w - 10, this._mapHzToY(puntoActual.hz), 5, 0, Math.PI * 2);
-        ctx.fillStyle = "#80c8ff";
-        ctx.shadowColor = "#5db3ff";
-        ctx.shadowBlur = 10;
-        ctx.fill();
-        ctx.shadowBlur = 0;
+          ctx.beginPath();
+          ctx.arc(w - 10, this._mapHzToY(puntoActual.hz), 5, 0, Math.PI * 2);
+          ctx.fillStyle = "#80c8ff";
+          ctx.shadowColor = "#5db3ff";
+          ctx.shadowBlur = 10;
+          ctx.fill();
+          ctx.shadowBlur = 0;
         }
         // 🎯 Barra de precisión (comparación entre mic y canción)
         if (this.currentHz && this.refHz) {
-        const diff = Math.abs(this.currentHz - this.refHz);
-        const precision = Math.max(0, 1 - diff / 50); // 0–1 (tolerancia de ±50 Hz)
-        const barWidth = w * precision;
+          const diff = Math.abs(this.currentHz - this.refHz);
+          const precision = Math.max(0, 1 - diff / 50); // 0–1 (tolerancia de ±50 Hz)
+          const barWidth = w * precision;
 
-        ctx.fillStyle = precision > 0.8 ? "#4cff4c" : precision > 0.5 ? "#ffb84c" : "#ff4c4c";
-        ctx.fillRect(0, h - 8, barWidth, 6);
+          ctx.fillStyle = precision > 0.8 ? "#4cff4c" : precision > 0.5 ? "#ffb84c" : "#ff4c4c";
+          ctx.fillRect(0, h - 8, barWidth, 6);
 
-        ctx.font = "12px monospace";
-        ctx.fillStyle = "#ccc";
-        ctx.textAlign = "center";
-        ctx.fillText(`Δ ${diff.toFixed(1)} Hz`, w / 2, h - 15);
+          ctx.font = "12px monospace";
+          ctx.fillStyle = "#ccc";
+          ctx.textAlign = "center";
+          ctx.fillText(`Δ ${diff.toFixed(1)} Hz`, w / 2, h - 15);
         }
 
-    }
+      }
     }
 
 
@@ -320,47 +320,56 @@ class KaraokeApp {
       ctx.stroke();
     }
 
-    // 💜 Línea del usuario remoto (voz del móvil)
+    // 💜 Usuario remoto: bolita con estela dinámica (ajustada)
     const remote = getRemotePitch();
     if (remote && remote.hz) {
-        const yRemote = this._mapHzToY(remote.hz);
+      const yRemote = this._mapHzToY(remote.hz);
+      this.remoteTrail = this.remoteTrail || [];
+      this.remoteTrail.push(yRemote);
+      if (this.remoteTrail.length > 25) this.remoteTrail.shift(); // largo de la estela
+
+      // Posición X base de la cabeza (bolita principal)
+      const headX = w * 0.85;
+
+      // 🎨 Dibujar la estela (de atrás hacia la cabeza)
+      for (let i = 0; i < this.remoteTrail.length; i++) {
+        const alpha = i / this.remoteTrail.length;
+        const radius = 5 * (1 - alpha * 0.6);
+        const offsetX = headX - (this.remoteTrail.length - i) * 8; // se aleja hacia la izquierda
         ctx.beginPath();
-        ctx.moveTo(0, yRemote);
-        ctx.lineTo(w, yRemote);
-        ctx.strokeStyle = "#d56eff"; // color magenta
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([6, 3]);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        ctx.arc(offsetX, this.remoteTrail[i], radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(213,110,255,${0.7 - alpha * 0.5})`;
+        ctx.fill();
+      }
 
-        // etiqueta
-        ctx.fillStyle = "#d56eff";
-        ctx.font = "13px system-ui";
-        ctx.fillText(`${remote.user}: ${remote.hz.toFixed(1)} Hz`, 10, yRemote - 6);
+      // 💜 Bolita principal (al frente)
+      ctx.beginPath();
+      ctx.arc(headX, yRemote, 8, 0, Math.PI * 2);
+      ctx.fillStyle = "#d56eff";
+      ctx.shadowColor = "#d56eff";
+      ctx.shadowBlur = 15;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // 🏷️ Etiqueta
+      ctx.fillStyle = "#d56eff";
+      ctx.font = "13px system-ui";
+      ctx.fillText(`${remote.user}: ${remote.hz.toFixed(1)} Hz`, headX - 60, yRemote - 15);
     }
-
-
-    // Etiquetas
-    ctx.fillStyle = "#8a8f98";
-    ctx.font = "12px system-ui";
-    ctx.textAlign = "left";
-    ctx.fillText(`${this.minHz} Hz`, 8, h - 8);
-    ctx.textAlign = "right";
-    ctx.fillText(`${this.maxHz} Hz`, w - 8, 14);
 
     // Mostrar valores actuales de frecuencia
     ctx.fillStyle = "#9ad1ff";
     ctx.font = "14px monospace";
     ctx.textAlign = "left";
     ctx.fillText(
-    `🎙️ Mic: ${this.currentHz ? this.currentHz.toFixed(1) + " Hz" : "—"}`,
-    10,
-    20
+      `🎙️ Mic: ${this.currentHz ? this.currentHz.toFixed(1) + " Hz" : "—"}`,
+      10,
+      20
     );
     ctx.fillText(
-    `🎵 Song: ${this.refHz ? this.refHz.toFixed(1) + " Hz" : "—"}`,
-    10,
-    40
+      `🎵 Song: ${this.refHz ? this.refHz.toFixed(1) + " Hz" : "—"}`,
+      10,
+      40
     );
 
   }

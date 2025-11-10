@@ -1,6 +1,8 @@
-// server.js
+// server.js (versión HTTPS lista)
+
 import express from "express";
 import http from "http";
+import https from "https"; // 🔹 Agregado
 import { Server } from "socket.io";
 import path from "path";
 import fs from "fs";
@@ -11,14 +13,26 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const server = http.createServer(app);
+
+// ===============================
+// 🔹 Cargar certificados SSL
+// ===============================
+const sslOptions = {
+  key: fs.readFileSync(path.join(__dirname, "cert", "key.pem")),
+  cert: fs.readFileSync(path.join(__dirname, "cert", "cert.pem")),
+};
+
+// ===============================
+// 🔹 Crear servidor HTTPS
+// ===============================
+const server = https.createServer(sslOptions, app);
 
 // Inicializa Socket.IO con configuración estable
 const io = new Server(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+  },
 });
 
 const PORT = 3000;
@@ -36,7 +50,7 @@ io.on("connection", (socket) => {
   socket.on("setUser", (name) => {
     socket.userName = name;
     console.log(`👤 Usuario identificado como: ${name}`);
-    io.emit("userConnected", { name }); // 🔹 Avisar a todos
+    io.emit("userConnected", { name });
   });
 
   // Reenviar tono (pitch) a todos los demás
@@ -47,13 +61,13 @@ io.on("connection", (socket) => {
   // Reenviar selección de canción
   socket.on("selectSong", (song) => {
     console.log(`🎵 Canción seleccionada: ${song}`);
-    io.emit("songSelected", song); // 🔹 Enviar a todos, no solo al otro
+    io.emit("songSelected", song);
   });
 
   // 🔹 Reenviar control de música (play/pause)
   socket.on("musicControl", (data) => {
     console.log(`🎛️ Control recibido: ${data.action} de ${data.from}`);
-    io.emit("musicControl", data); // 🔹 Reenviar a todos los clientes
+    io.emit("musicControl", data);
   });
 
   socket.on("disconnect", () => {
@@ -90,6 +104,6 @@ app.get("/api/songs", (req, res) => {
 // 🔹 INICIO DEL SERVIDOR
 // ===============================
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`🎤 Servidor Karaoke corriendo en: http://192.168.1.8:${PORT}`);
-  console.log("📡 Esperando conexiones de móviles en la misma red Wi-Fi...");
+  console.log(`🔒 Servidor Karaoke HTTPS corriendo en: https://192.168.1.8:${PORT}`);
+  console.log("📡 Micrófono habilitado para dispositivos móviles.");
 });
