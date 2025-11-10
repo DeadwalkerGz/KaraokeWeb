@@ -70,6 +70,16 @@ io.on("connection", (socket) => {
     io.emit("musicControl", data);
   });
 
+  // ===================================================
+  // 🔸 NUEVO EVENTO → Sincronización de Play (Karaoke)
+  // ===================================================
+  socket.on("playSong", (data) => {
+    console.log(`▶️ Evento de Play recibido de ${data.sender}`);
+    // Reenviar a todos los demás usuarios
+    socket.broadcast.emit("playSong", data);
+  });
+
+  // 🔴 Desconexión
   socket.on("disconnect", () => {
     console.log(`🔴 Usuario desconectado: ${socket.id}`);
     io.emit("userDisconnected", { name: socket.userName });
