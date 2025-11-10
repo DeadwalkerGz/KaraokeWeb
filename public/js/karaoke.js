@@ -229,15 +229,16 @@ class KaraokeApp {
     const h = this.canvas.height;
     ctx.clearRect(0, 0, w, h);
 
+    // 🎬 Fondo base
     ctx.fillStyle = "#0b0f15";
     ctx.fillRect(0, 0, w, h);
 
-    // Efecto de energía sobre el fondo
+    // 💡 Efecto de energía del micrófono (brillo dinámico)
     const energia = Math.min(1, this.currentRms * 8);
     ctx.fillStyle = `rgba(0, 255, 0, ${energia * 0.25})`;
     ctx.fillRect(0, 0, w, h);
 
-    // Cuadrícula
+    // 🧱 Cuadrícula
     ctx.strokeStyle = "#223046";
     ctx.lineWidth = 1;
     ctx.globalAlpha = 0.25;
@@ -250,129 +251,142 @@ class KaraokeApp {
     }
     ctx.globalAlpha = 1;
 
-    // 🔵 Línea de referencia (pista)
+    // 💜 Usuario remoto centrado con estela detrás (fondo)
+    const remote = getRemotePitch();
+    if (remote && remote.hz) {
+      const yRemote = this._mapHzToY(remote.hz);
+      this.remoteTrail = this.remoteTrail || [];
+      this.remoteTrail.push(yRemote);
+      if (this.remoteTrail.length > 25) this.remoteTrail.shift();
+
+      const headX = w / 2; // eje central compartido
+
+      // 🎨 Estela (dibujada primero — queda detrás de todo)
+      for (let i = 0; i < this.remoteTrail.length; i++) {
+        const alpha = i / this.remoteTrail.length;
+        const radius = 5 * (1 - alpha * 0.6);
+        const offsetX = headX - (this.remoteTrail.length - i) * 8; // hacia atrás
+        ctx.beginPath();
+        ctx.arc(offsetX, this.remoteTrail[i], radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(213,110,255,${0.35 - alpha * 0.2})`;
+        ctx.fill();
+      }
+
+      // 💜 Bolita principal (queda detrás del azul y verde)
+      ctx.beginPath();
+      ctx.arc(headX, yRemote, 8, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(213,110,255,0.6)";
+      ctx.fill();
+    }
+
+    // 🔵 Línea de referencia (pista musical centrada)
     if (this.reference && this.audioEl && !isNaN(this.audioEl.currentTime)) {
       const t = this.audioEl.currentTime;
+      const windowSize = 2; // segundos antes y después del punto actual
+      const segmentos = this.reference.filter(p => p.t >= t - windowSize && p.t <= t + windowSize);
 
-      // 🎵 Calcular tono actual de la referencia (solo una vez por frame)
       let idx = this.reference.findIndex(p => p.t > t);
       if (idx === -1) idx = this.reference.length - 1;
       const punto = this.reference[idx];
       this.refHz = punto ? punto.hz : null;
 
-      // Muestra los últimos 5 segundos de referencia (más fluido)
-      const segmentos = this.reference.filter(p => p.t <= t && p.t >= t - 5);
-
       if (segmentos.length > 1) {
         ctx.strokeStyle = "#5db3ff";
         ctx.lineWidth = 2;
         ctx.beginPath();
+
         segmentos.forEach((p, i) => {
-          const x = (i / (segmentos.length - 1)) * w;
+          const relTime = p.t - t; // tiempo relativo (-2 a +2)
+          const x = w / 2 + (relTime / windowSize) * (w / 2);
           const y = this._mapHzToY(p.hz);
           if (i === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         });
         ctx.stroke();
 
-        // 🔘 Puntero actual (punto azul brillante)
-        const puntoActual = segmentos[segmentos.length - 1];
-        if (puntoActual) {
-          ctx.beginPath();
-          ctx.arc(w - 10, this._mapHzToY(puntoActual.hz), 5, 0, Math.PI * 2);
-          ctx.fillStyle = "#80c8ff";
-          ctx.shadowColor = "#5db3ff";
-          ctx.shadowBlur = 10;
-          ctx.fill();
-          ctx.shadowBlur = 0;
-        }
-        // 🎯 Barra de precisión (comparación entre mic y canción)
+        // 🎯 Puntero de la canción (en el centro)
+        const centerY = this._mapHzToY(this.refHz);
+        ctx.beginPath();
+        ctx.arc(w / 2, centerY, 6, 0, Math.PI * 2);
+        ctx.fillStyle = "#80c8ff";
+        ctx.shadowColor = "#5db3ff";
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // 🎚️ Barra de precisión (Micrófono vs Canción)
         if (this.currentHz && this.refHz) {
           const diff = Math.abs(this.currentHz - this.refHz);
-          const precision = Math.max(0, 1 - diff / 50); // 0–1 (tolerancia de ±50 Hz)
+          const precision = Math.max(0, 1 - diff / 50); // tolerancia ±50 Hz
           const barWidth = w * precision;
-
-          ctx.fillStyle = precision > 0.8 ? "#4cff4c" : precision > 0.5 ? "#ffb84c" : "#ff4c4c";
-          ctx.fillRect(0, h - 8, barWidth, 6);
+          ctx.fillStyle =
+            precision > 0.8 ? "#4cff4c" :
+              precision > 0.5 ? "#ffb84c" : "#ff4c4c";
+          ctx.fillRect((w - barWidth) / 2, h - 8, barWidth, 6);
 
           ctx.font = "12px monospace";
           ctx.fillStyle = "#ccc";
           ctx.textAlign = "center";
           ctx.fillText(`Δ ${diff.toFixed(1)} Hz`, w / 2, h - 15);
         }
-
       }
     }
 
-
-    // 🟢 Línea de la voz actual (historial)
+    // 🟢 Línea de voz actual centrada (usuario local)
     if (this.history.length > 1) {
       ctx.strokeStyle = "#7fff7f";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      this.history.forEach((hz, i) => {
-        if (!hz) return;
-        const x = (i / this.maxHistory) * w;
-        const y = this._mapHzToY(hz);
-        if (i === 0) ctx.moveTo(x, y);
+
+      const recent = this.history.slice(-this.maxHistory);
+
+      // 🔹 Dibujar la estela desde el centro hacia la izquierda
+      for (let i = recent.length - 1; i >= 0; i--) {
+        if (!recent[i]) continue;
+        const x = w / 2 - (recent.length - i) * 6; // estela hacia la izquierda
+        const y = this._mapHzToY(recent[i]);
+        if (i === recent.length - 1) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
-      });
+      }
       ctx.stroke();
+
+      // 🔘 Bolita verde central (tu voz actual)
+      if (this.currentHz) {
+        const yCurrent = this._mapHzToY(this.currentHz);
+        ctx.beginPath();
+        ctx.arc(w / 2, yCurrent, 6, 0, Math.PI * 2);
+        ctx.fillStyle = "#7fff7f";
+        ctx.shadowColor = "#7fff7f";
+        ctx.shadowBlur = 12;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
     }
 
-    // 💜 Usuario remoto: bolita con estela dinámica (ajustada)
-    const remote = getRemotePitch();
+
+    // 💜 Etiqueta del usuario remoto (por encima, visible)
     if (remote && remote.hz) {
       const yRemote = this._mapHzToY(remote.hz);
-      this.remoteTrail = this.remoteTrail || [];
-      this.remoteTrail.push(yRemote);
-      if (this.remoteTrail.length > 25) this.remoteTrail.shift(); // largo de la estela
-
-      // Posición X base de la cabeza (bolita principal)
-      const headX = w * 0.85;
-
-      // 🎨 Dibujar la estela (de atrás hacia la cabeza)
-      for (let i = 0; i < this.remoteTrail.length; i++) {
-        const alpha = i / this.remoteTrail.length;
-        const radius = 5 * (1 - alpha * 0.6);
-        const offsetX = headX - (this.remoteTrail.length - i) * 8; // se aleja hacia la izquierda
-        ctx.beginPath();
-        ctx.arc(offsetX, this.remoteTrail[i], radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(213,110,255,${0.7 - alpha * 0.5})`;
-        ctx.fill();
-      }
-
-      // 💜 Bolita principal (al frente)
-      ctx.beginPath();
-      ctx.arc(headX, yRemote, 8, 0, Math.PI * 2);
-      ctx.fillStyle = "#d56eff";
-      ctx.shadowColor = "#d56eff";
-      ctx.shadowBlur = 15;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // 🏷️ Etiqueta
       ctx.fillStyle = "#d56eff";
       ctx.font = "13px system-ui";
-      ctx.fillText(`${remote.user}: ${remote.hz.toFixed(1)} Hz`, headX - 60, yRemote - 15);
+      ctx.textAlign = "center";
+      ctx.fillText(`${remote.user}: ${remote.hz.toFixed(1)} Hz`, w / 2, yRemote - 20);
     }
 
-    // Mostrar valores actuales de frecuencia
+    // 📊 Mostrar datos actuales
     ctx.fillStyle = "#9ad1ff";
     ctx.font = "14px monospace";
     ctx.textAlign = "left";
     ctx.fillText(
       `🎙️ Mic: ${this.currentHz ? this.currentHz.toFixed(1) + " Hz" : "—"}`,
-      10,
-      20
+      10, 20
     );
     ctx.fillText(
       `🎵 Song: ${this.refHz ? this.refHz.toFixed(1) + " Hz" : "—"}`,
-      10,
-      40
+      10, 40
     );
-
   }
+
 
   _status(text, lvl = "") {
     this.labelEstado.textContent = text;
