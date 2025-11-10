@@ -66,15 +66,22 @@ window.addEventListener("DOMContentLoaded", initRoleSelector);
 // 🔸 Estado de conexión
 // ===================================================
 socket.on("connect", () => {
-  console.log(`🟢 Conectado al servidor como ${userName} (${socket.id})`);
-  socket.emit("setUser", userName);
+  console.log(`🟢 Conectado al servidor (${socket.id})`);
 
-  // 🔹 Actualizar estado visual cuando realmente se conecta
-  const labelEstado = document.getElementById("label-estado");
-  if (labelEstado) {
-    labelEstado.textContent = "🟢 Conectado al servidor";
-    labelEstado.className = "ok";
-  }
+  // Espera un breve tiempo para asegurar que el rol esté definido
+  setTimeout(() => {
+    userName = localStorage.getItem("karaokeRole") || "User2";
+
+    console.log(`🎭 Rol confirmado tras conexión: ${userName}`);
+    socket.emit("setUser", userName);
+
+    // 🔹 Actualizar estado visual con el rol correcto
+    const labelEstado = document.getElementById("label-estado");
+    if (labelEstado) {
+      labelEstado.textContent = `🟢 Conectado como ${userName}`;
+      labelEstado.className = "ok";
+    }
+  }, 500); // espera 0.5 segundos
 });
 
 socket.on("disconnect", () => {
